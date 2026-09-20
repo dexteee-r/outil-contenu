@@ -1,0 +1,22 @@
+{
+  "name": "@outil/spikes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scripts jetables de dérisquage (étape 2). Conservés pour mémoire, pas de code de prod ici.",
+  "scripts": {
+    "s1": "tsx s1-tagging/run.ts",
+    "s2": "tsx s2-render/run.ts",
+    "s3": "tsx s3-thumbnail/run.ts",
+    "s4": "tsx s4-tray/run.ts"
+  },
+  "dependencies": {
+    "@outil/core": "workspace:*",
+    "@outil/video": "workspace:*",
+    "sharp": "^0.35.4",
+    "systray2": "^2.1.4"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.13"
+  }
+}

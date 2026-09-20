@@ -82,7 +82,7 @@ export async function runDoctor(options: { repoRoot?: string } = {}): Promise<Do
   add(
     'info',
     'Remotion / Chrome headless',
-    'pas encore installé — arrive avec packages/video (spike S2)',
+    'packages/video ; Chrome Headless Shell téléchargé au premier rendu (spike S2 validé)',
   );
 
   // --- Config ----------------------------------------------------------------

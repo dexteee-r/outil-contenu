@@ -1,10 +1,14 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM"]
   },
   "include": [
     "packages/*/src/**/*.ts",
+    "packages/*/src/**/*.tsx",
+    "spikes/**/*.ts",
     "packages/*/drizzle.config.ts",
     "apps/*/src/**/*.ts",
     "vitest.config.ts",

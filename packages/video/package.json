@@ -1,0 +1,26 @@
+{
+  "name": "@outil/video",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/render.ts",
+    "./timeline": "./src/timeline.ts"
+  },
+  "scripts": {
+    "studio": "remotion studio src/index.ts"
+  },
+  "dependencies": {
+    "@outil/core": "workspace:*",
+    "@remotion/bundler": "^4.0.526",
+    "@remotion/cli": "^4.0.526",
+    "@remotion/renderer": "^4.0.526",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "^4.0.526"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  }
+}
