@@ -1,0 +1,32 @@
+# Dépendances et builds
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+
+# Secrets et config locale
+.env
+.env.local
+.env.*.local
+
+# Données du pipeline (rushs, rendus, base SQLite) — jamais dans git
+data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Gros fichiers de test : seuls les JSON de réponses API enregistrées sont versionnés
+fixtures/**/*.mp4
+fixtures/**/*.mov
+fixtures/**/*.png
+fixtures/**/*.jpg
+
+# Musique : la bibliothèque n'est pas versionnée, seulement l'index
+music/*
+!music/music.json
+
+# Divers
+.DS_Store
+Thumbs.db
+*.log

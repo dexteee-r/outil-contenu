@@ -1,0 +1,13 @@
+{
+  "name": "@outil/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "cli": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@outil/core": "workspace:*",
+    "commander": "^15.0.0"
+  }
+}

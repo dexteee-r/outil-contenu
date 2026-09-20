@@ -1,0 +1,13 @@
+# Fins de ligne LF partout (Prettier est configuré en lf), même sur Windows
+* text=auto eol=lf
+
+# Binaires
+*.png binary
+*.jpg binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.woff2 binary
+*.mp4 binary
+*.mp3 binary
+*.sqlite binary

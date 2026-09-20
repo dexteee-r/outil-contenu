@@ -1,0 +1,30 @@
+# Compte TCG — ouvertures de cartes. Les chemins sont relatifs à ce dossier.
+slug: tcg
+displayName: TCG
+contentType: tcg-opening
+platforms: [youtube-shorts, tiktok, instagram-reels]
+
+brand:
+  logo: brand/logo.png # à déposer
+  colors:
+    primary: '#FFCC00'
+    secondary: '#1A1A2E'
+    background: '#0F0F1A'
+    text: '#FFFFFF'
+  fonts:
+    title: Impact # nom de police installée, ou chemin vers un .ttf dans brand/fonts/
+    body: Arial
+
+# Gabarit des miniatures (étape 5) et prompt de légendes (migré depuis le Claude Project)
+thumbnailTemplate: thumbnail.json
+captionPrompt: prompts/captions.md
+knowledgeFiles: []
+
+# Moods disponibles dans music/music.json pour ce compte
+musicMoods: [hype, tension, reveal]
+
+durationRange: { min: 15, max: 60 }
+subtitles: false
+
+# unlimited | threshold (alerte) | cap (plafond strict)
+budget: { mode: threshold, monthlyLimitEur: 5 }
