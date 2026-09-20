@@ -1,0 +1,20 @@
+[
+  {
+    "id": "rush-01",
+    "path": "source/rush-01.mp4",
+    "durationSec": 42.0,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "hasAudio": true
+  },
+  {
+    "id": "rush-02",
+    "path": "source/rush-02.mp4",
+    "durationSec": 18.5,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "hasAudio": true
+  }
+]

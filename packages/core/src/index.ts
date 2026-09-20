@@ -6,3 +6,8 @@ export * from './db/index.js';
 export * from './db/schema.js';
 export * from './providers/pricing.js';
 export * from './providers/usage.js';
+export * from './schemas/tagging.js';
+export * from './schemas/edl.js';
+export * from './schemas/metadata.js';
+export * from './schemas/json-schema.js';
+export * from './schemas/fixtures.js';

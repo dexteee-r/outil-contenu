@@ -20,8 +20,25 @@ pnpm test
 apps/worker      orchestrateur + CLI (pnpm cli <commande>)
 packages/core    schémas Zod, base SQLite (Drizzle), config comptes, suivi des coûts API
 accounts/<slug>  config d'une marque : account.yaml, brand/, prompts/
+fixtures/        clips + EDL de référence (JSON) ; les rushs vidéo ne sont pas versionnés
 packages/core/src/doctor.ts   contrôles de prérequis (pnpm check)
 ```
+
+## Contrats de données
+
+Dans `packages/core/src/schemas/` — source unique (Zod) pour les types TS, la validation et
+le JSON Schema envoyé aux modèles (`toJsonSchema()` pour Gemini, `zodOutputFormat()` du SDK pour Claude).
+
+| Contrat | Fichier | Produit par | Contrôle |
+| --- | --- | --- | --- |
+| `TaggingOutput` → `TaggingResult` | `tagging.ts` | Gemini (tag) | `validateTaggingOutput()` : ids de clips, bornes dans la durée |
+| `Edl` | `edl.ts` | Claude (edl) | `validateEdl()` : clips, bornes, durée totale, segments, overlays |
+| `Captions` | `metadata.ts` | Claude (captions) | `captionsOutputSchemaFor(platforms)` : une entrée par plateforme du compte |
+| `Metadata` | `metadata.ts` | pipeline (deliver) | schéma de `metadata.json` |
+| `AccountConfig` | `../config/account.ts` | Markus (YAML) | `loadAccount()` |
+
+Les schémas destinés aux modèles ont tous leurs champs requis et aucune valeur par défaut
+(contrainte des sorties structurées). L'EDL de référence est dans `fixtures/reference/edl.json`.
 
 ## Base de données
 
