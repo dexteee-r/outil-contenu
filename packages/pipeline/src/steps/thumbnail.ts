@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   composeCardThumbnail,
+  composeScreenThumbnail,
   composeThumbnail,
   cropByFraming,
   DEFAULT_THUMBNAIL_TEMPLATE,
@@ -42,7 +43,11 @@ export function framingAt(edl: Edl | undefined, clipId: string, atSec: number): 
   return { ...seg.framing, zoom: Math.min(seg.framing.zoom, KEY_FRAME_MAX_ZOOM) };
 }
 
-/** Prompt de visuel de fond (style photo) : la scène du climax + la charte du compte, sans texte. */
+/**
+ * Prompt de visuel de fond (style photo, généré par IA) : la scène du climax + la charte du compte.
+ * En anglais, structuré sujet → cadrage → lumière/couleurs → style → interdits, comme le
+ * recommande prompts/visual-prompt-engineer.md ; jamais de texte ni de reproduction d'illustration officielle.
+ */
 export function buildBackgroundPrompt(
   account: LoadedAccount,
   tagging: TaggingResult,
@@ -54,7 +59,20 @@ export function buildBackgroundPrompt(
     clip?.scenes[0];
   const subject = scene?.description ?? tagging.summary;
   const colors = account.config.brand.colors;
-  return `Visuel de miniature vertical pour une vidéo courte. Sujet : ${subject}. Cadrage serré et dramatique, éclairage contrasté, fond sombre, ambiance aux couleurs ${colors.primary} et ${colors.secondary}, style photo de produit cinématographique. Aucun texte, aucune lettre, aucun logo dans l'image.`;
+  const styleByType: Record<string, string> = {
+    'tcg-opening':
+      'vibrant collector energy, card-pull excitement, fan-style original art inspired by trading-card aesthetics',
+    'nature-walk': 'natural light, calm and immersive, documentary photography feel',
+    generic: 'clean modern social-media visual',
+  };
+  return [
+    `Vertical thumbnail visual for a short-form video. Subject: ${subject}.`,
+    'Composition: tight, dramatic framing on the subject, clear negative space in the lower third for a text overlay added later.',
+    `Lighting and palette: high-contrast lighting, dark background, accents in ${colors.primary} and ${colors.secondary}.`,
+    `Style: ${styleByType[account.config.contentType] ?? styleByType.generic}, cinematic product-photography look.`,
+    'Aspect ratio 9:16.',
+    'Avoid: any text, letters or logos in the image; photorealistic reproduction of official trading-card artwork, exact character designs or brand logos.',
+  ].join(' ');
 }
 
 /**
@@ -95,16 +113,26 @@ export async function thumbnail(
   );
 
   state.thumbnails = [];
-  if (template.style === 'card') {
+  if (template.style === 'screen' || template.style === 'card') {
     for (const format of THUMBNAIL_FORMATS) {
-      const composed = await composeCardThumbnail({
-        keyFrame,
-        format,
-        template,
-        brand: account.config.brand,
-        title,
-        logo,
-      });
+      const composed =
+        template.style === 'screen'
+          ? await composeScreenThumbnail({
+              frame: keyFrame,
+              format,
+              template,
+              brand: account.config.brand,
+              title,
+              logo,
+            })
+          : await composeCardThumbnail({
+              keyFrame,
+              format,
+              template,
+              brand: account.config.brand,
+              title,
+              logo,
+            });
       const file = path.join(state.workDir, `thumb-${format}-v1.png`);
       fs.writeFileSync(file, composed.png);
       state.thumbnails.push({
@@ -115,7 +143,9 @@ export async function thumbnail(
         background: 'frame',
       });
     }
-    p.log(`thumbnail : style card, titre « ${title} », CTA « ${template.cta ?? '—'} »`);
+    p.log(
+      `thumbnail : style ${template.style}, titre « ${title} », CTA « ${template.cta ?? '—'} »`,
+    );
     return;
   }
 

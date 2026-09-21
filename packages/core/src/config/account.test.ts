@@ -45,6 +45,7 @@ describe('parseAccountConfig', () => {
     expect(cfg.contentType).toBe('generic');
     expect(cfg.platforms).toEqual(['youtube-shorts', 'tiktok', 'instagram-reels']);
     expect(cfg.subtitles).toBe(false);
+    expect(cfg.overlays).toEqual(['hook']);
     expect(cfg.durationRange).toEqual({ min: 15, max: 60 });
     expect(cfg.budget).toEqual({ mode: 'unlimited' });
     expect(cfg.captionPrompt).toBe('prompts/captions.md');

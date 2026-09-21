@@ -156,7 +156,11 @@ describe('edl step', () => {
     };
     fs.mkdirSync(state.workDir, { recursive: true });
     await edl(pctx, state, loadAccount('tcg', ctx.accountsDir));
-    expect(state.edl).toEqual(referenceEdl);
+    // le compte de test n'autorise que le hook : le callout de la référence est retiré
+    expect(state.edl).toEqual({
+      ...referenceEdl,
+      overlays: referenceEdl.overlays.filter((o) => o.style === 'hook'),
+    });
     expect(state.edlAttempts).toBe(2);
     expect(sent[1]!.messages).toHaveLength(3);
     expect(sent[1]!.messages[2]!.content).toContain('clipId "rush-99" inconnu');
@@ -171,6 +175,7 @@ describe('edl step', () => {
     const text = buildEdlRequest(account, tagging);
     expect(text).toContain('durationRange : 15 à 60 secondes');
     expect(text).toContain('musicMoods disponibles : hype');
+    expect(text).toContain('overlays autorisés : hook');
     expect(text).toContain('"clipId": "rush-01"');
     expect(JSON.stringify(taggingForPrompt(tagging))).not.toContain('source/rush-01.mp4');
   });
@@ -255,7 +260,8 @@ describe('thumbnail step (repli image clé, ffmpeg réel)', () => {
     const prompt = buildBackgroundPrompt(account, tagging, pickKeyMoment(tagging));
     expect(prompt).toContain('scène de rush-01');
     expect(prompt).toContain('#FFCC00');
-    expect(prompt).toMatch(/Aucun texte/);
+    expect(prompt).toMatch(/Avoid: any text/);
+    expect(prompt).toMatch(/official trading-card artwork/);
   });
 });
 

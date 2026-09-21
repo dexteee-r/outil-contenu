@@ -39,6 +39,7 @@ export function buildEdlRequest(account: LoadedAccount, tagging: TaggingResult):
     `- contentType : ${c.contentType}`,
     `- durationRange : ${c.durationRange.min} à ${c.durationRange.max} secondes`,
     `- musicMoods disponibles : ${c.musicMoods.length ? c.musicMoods.join(', ') : 'aucun (choisis un mood libre)'}`,
+    `- overlays autorisés : ${c.overlays.length ? c.overlays.join(', ') : 'aucun'} — n'en produis pas d'autre style`,
     '',
     '## Dérushage',
     '```json',
@@ -83,6 +84,11 @@ export async function edl(
       meta,
       effort: 'medium',
     });
+    // Garde-fou : on retire les styles d'overlay que le compte n'autorise pas, quoi que dise le modèle
+    const allowed = new Set(account.config.overlays);
+    const removed = data.overlays.filter((o) => !allowed.has(o.style)).length;
+    data.overlays = data.overlays.filter((o) => allowed.has(o.style));
+    if (removed) p.log(`edl : ${removed} overlay(s) retiré(s) (style non autorisé par le compte)`);
     const check = validateEdl(data, { clips, durationRange: account.config.durationRange });
     if (check.ok) {
       state.edl = data;

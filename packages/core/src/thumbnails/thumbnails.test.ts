@@ -1,6 +1,8 @@
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
+import { composeCardThumbnail } from './card.js';
 import { composeThumbnail, contactSheet, escapeXml, fitTitle, wrapTitle } from './compose.js';
+import { composeScreenThumbnail } from './screen.js';
 import {
   DEFAULT_THUMBNAIL_TEMPLATE,
   parseThumbnailTemplate,
@@ -133,4 +135,72 @@ describe('composeThumbnail', () => {
     const m2 = await sharp(labelled).metadata();
     expect(m2.height).toBe(100 + 9 + 2 * 12); // bandeau de 9 px (9 % de la largeur)
   });
+});
+
+describe('styles card et screen', () => {
+  const frame = () =>
+    sharp({ create: { width: 1080, height: 1920, channels: 3, background: '#556677' } })
+      .composite([
+        {
+          input: Buffer.from(
+            '<svg width="1080" height="1920"><rect x="300" y="600" width="480" height="700" rx="24" fill="#ffcc00"/></svg>',
+          ),
+        },
+      ])
+      .png()
+      .toBuffer();
+
+  it('card : deux formats aux bonnes dimensions, avec ou sans CTA', async () => {
+    const keyFrame = await frame();
+    for (const [format, size] of [
+      ['9x16', [1080, 1920]],
+      ['16x9', [1280, 720]],
+    ] as const) {
+      const out = await composeCardThumbnail({
+        keyFrame,
+        format,
+        template: DEFAULT_THUMBNAIL_TEMPLATE,
+        brand,
+        title: 'Pull de fou',
+      });
+      const meta = await sharp(out.png).metadata();
+      expect([meta.width, meta.height]).toEqual(size);
+    }
+    const noCta = await composeCardThumbnail({
+      keyFrame,
+      format: '9x16',
+      template: { ...DEFAULT_THUMBNAIL_TEMPLATE, cta: null },
+      brand,
+      title: 'X',
+    });
+    expect(noCta.fitted.lines).toEqual(['X']);
+  }, 60_000);
+
+  it('screen : plein cadre en 9:16, encart sur fond flouté en 16:9, titre en majuscules', async () => {
+    const f = await frame();
+    const tall = await composeScreenThumbnail({
+      frame: f,
+      format: '9x16',
+      template: DEFAULT_THUMBNAIL_TEMPLATE,
+      brand,
+      title: "c'est vergo",
+    });
+    expect([tall.width, tall.height]).toEqual([1080, 1920]);
+    expect(tall.fitted.lines).toEqual(["C'EST VERGO"]);
+    const wide = await composeScreenThumbnail({
+      frame: f,
+      format: '16x9',
+      template: DEFAULT_THUMBNAIL_TEMPLATE,
+      brand,
+      title: 'Pull de fou',
+    });
+    const meta = await sharp(wide.png).metadata();
+    expect([meta.width, meta.height]).toEqual([1280, 720]);
+    // l'encart net est à gauche : le pixel au centre gauche est la couleur du cadre jaune, pas du fond flouté sombre
+    const { data } = await sharp(wide.png)
+      .extract({ left: 200, top: 360, width: 1, height: 1 })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    expect(data[0]).toBeGreaterThan(150);
+  }, 60_000);
 });

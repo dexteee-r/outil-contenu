@@ -28,3 +28,4 @@ export * from './music/index.js';
 export * from './music/sfx.js';
 export * from './thumbnails/card.js';
 export * from './images/frames.js';
+export * from './thumbnails/screen.js';

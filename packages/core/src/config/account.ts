@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import { OVERLAY_STYLES } from '../schemas/edl.js';
 
 export const CONTENT_TYPES = ['tcg-opening', 'nature-walk', 'generic'] as const;
 export type ContentType = (typeof CONTENT_TYPES)[number];
@@ -64,6 +65,8 @@ export const accountConfigSchema = z
       .refine((r) => r.min <= r.max, 'durationRange.min doit être <= durationRange.max')
       .default({ min: 15, max: 60 }),
     subtitles: z.boolean().default(false),
+    /** Textes incrustés autorisés dans la vidéo : hook (accroche du début) seul par défaut — pas de texte descriptif au climax */
+    overlays: z.array(z.enum(OVERLAY_STYLES)).default(['hook']),
     budget: budgetSchema.default({ mode: 'unlimited' }),
   })
   .strict();

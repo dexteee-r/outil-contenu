@@ -4,7 +4,12 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { composeCardThumbnail, DEFAULT_THUMBNAIL_TEMPLATE, THUMBNAIL_FORMATS } from '@outil/core';
+import {
+  composeCardThumbnail,
+  composeScreenThumbnail,
+  DEFAULT_THUMBNAIL_TEMPLATE,
+  THUMBNAIL_FORMATS,
+} from '@outil/core';
 
 const [
   keyFramePath,
@@ -30,4 +35,14 @@ for (const format of THUMBNAIL_FORMATS) {
   const file = path.join(outDir, `card-${format}.png`);
   fs.writeFileSync(file, out.png);
   console.log(`${file} — ${out.width}x${out.height}, ${out.fitted.lines.join(' / ')}`);
+  const screen = await composeScreenThumbnail({
+    frame: keyFrame,
+    format,
+    template: DEFAULT_THUMBNAIL_TEMPLATE,
+    brand,
+    title,
+  });
+  const screenFile = path.join(outDir, `screen-${format}.png`);
+  fs.writeFileSync(screenFile, screen.png);
+  console.log(`${screenFile} — ${screen.width}x${screen.height}`);
 }
