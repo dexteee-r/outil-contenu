@@ -61,7 +61,8 @@ export class UsageTracker {
     exactCostUsd?: number,
   ): void {
     const costUsd = exactCostUsd ?? estimateCostUsd(meta.model, usage, this.options.pricing);
-    if (costUsd === null && !this.warned.has(meta.model)) {
+    // Avertir seulement si le coût est inconnu ET que le fournisseur ne l'a pas donné (ex. kie.ai le donne)
+    if (costUsd === null && exactCostUsd === undefined && !this.warned.has(meta.model)) {
       this.warned.add(meta.model);
       this.options.onUnknownModel?.(meta.model);
     }

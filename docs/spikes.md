@@ -58,10 +58,24 @@ modèles de génération d'images répondent 429 avec `limit: 0` — `gemini-3-p
 la génération d'images n'est pas incluse dans le palier gratuit, quel que soit le modèle. Ce n'est pas
 une surcharge passagère (le retry le détecte désormais et n'insiste pas).
 
-Conséquence : **les miniatures IA exigent une clé avec facturation activée** (palier payant Gemini),
-ou un autre fournisseur payant (Seedream, Ideogram). À 0,035–0,07 $ l'image et 10-15 images par mois,
-c'est ~0,50 € par mois. Le run IA de S3 (3 visuels + comparaison « texte par le modèle ») reprend dès
-que la facturation est activée : `pnpm -C spikes s3 --title "…"`.
+Conséquence : les miniatures IA exigent une clé payante. La facturation Google Cloud a été refusée
+(`OR_BACR2_59`, contrôle anti-fraude, hors de notre contrôle) → **passage par kie.ai**, passerelle
+payante à l'usage qui héberge GPT Image 2, Nano Banana Pro, Seedream 4.5 et Ideogram V3 derrière une
+seule clé (`KieProvider`, coût exact depuis les crédits consommés, 200 crédits = 1 $).
+
+**Premier run IA le 2026-09-21 (`--provider kie`)** :
+
+- **Nano Banana Pro via kie.ai : validé.** Visuel très « miniature » (carte holographique dans une
+  main gantée, étincelles, éclairage dramatique), 2 Mo en 26 s, **18 crédits = 0,09 $ l'image**. La
+  composition par code (titre Impact + voile + recadrage) fonctionne dans les deux formats ; le
+  recadrage 16:9 en position `attention` garde bien la carte.
+- **Texte par le modèle** : Nano Banana Pro a gravé « PULL VERGO OP10-004 » en doré, en relief, sans
+  faute, intégré à la carte — esthétiquement supérieur au texte posé par code, mais sans garantie de
+  police/couleurs de marque, et une génération de plus (0,09 $). Piste pour l'étape 5 : proposer les
+  deux (texte code = sûr, texte modèle = variante « premium ») et laisser Markus choisir.
+- **GPT Image 2, Seedream 4.5, Ideogram V3 : 401 « The API key is not authorized to use this
+  model »** — pas un bug de notre côté : la clé kie.ai est restreinte par modèle. À vérifier dans les
+  réglages de la clé sur kie.ai/api-key (autorisations par modèle), puis relancer la comparaison.
 
 Pièges rencontrés : Zod 4 — `.default({})` ne re-parse pas la valeur (les sous-défauts ne
 s'appliquent pas), utiliser `.prefault({})`.
