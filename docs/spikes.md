@@ -52,8 +52,16 @@ sous-titres, zones sûres validées sur un vrai téléphone.
 1080x1920 et 1280x720 produits en ~60 ms chacun, planche contact. Gabarit `thumbnail.json` typé
 (Zod, fractions du format, défauts complets) et compositeur testés.
 
-**En attente de la clé Gemini** pour la partie IA : 3 visuels générés + 1 image « texte incrusté par le
-modèle » pour comparer avec le texte posé par code. Décision Gemini vs Ideogram reportée à ce run.
+**Partie IA bloquée par le palier gratuit (2026-09-21).** Avec la clé AI Studio gratuite, **tous** les
+modèles de génération d'images répondent 429 avec `limit: 0` — `gemini-3-pro-image` (Nano Banana Pro),
+`gemini-3.1-flash-image` (Nano Banana 2), `gemini-3.1-flash-lite-image`, `gemini-2.5-flash-image` :
+la génération d'images n'est pas incluse dans le palier gratuit, quel que soit le modèle. Ce n'est pas
+une surcharge passagère (le retry le détecte désormais et n'insiste pas).
+
+Conséquence : **les miniatures IA exigent une clé avec facturation activée** (palier payant Gemini),
+ou un autre fournisseur payant (Seedream, Ideogram). À 0,035–0,07 $ l'image et 10-15 images par mois,
+c'est ~0,50 € par mois. Le run IA de S3 (3 visuels + comparaison « texte par le modèle ») reprend dès
+que la facturation est activée : `pnpm -C spikes s3 --title "…"`.
 
 Pièges rencontrés : Zod 4 — `.default({})` ne re-parse pas la valeur (les sous-défauts ne
 s'appliquent pas), utiliser `.prefault({})`.

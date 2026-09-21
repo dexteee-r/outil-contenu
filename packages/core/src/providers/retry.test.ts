@@ -14,6 +14,18 @@ describe('isTransientApiError', () => {
     expect(isTransientApiError(new Error('fetch failed'))).toBe(true);
   });
 
+  it('ne rejoue pas un quota à zéro (modèle hors palier), même en 429', () => {
+    expect(
+      isTransientApiError(
+        apiError(
+          429,
+          'Quota exceeded for metric: …_free_tier_requests, limit: 0, model: gemini-3-pro-image',
+        ),
+      ),
+    ).toBe(false);
+    expect(isTransientApiError(apiError(429, 'Quota exceeded, limit: 10'))).toBe(true);
+  });
+
   it('ne rejoue pas les erreurs de contrat', () => {
     expect(isTransientApiError({ status: 400, message: 'invalid argument' })).toBe(false);
     expect(isTransientApiError({ status: 404 })).toBe(false);

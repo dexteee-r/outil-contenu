@@ -22,10 +22,12 @@ const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 export function isTransientApiError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   const e = err as { status?: unknown; code?: unknown; message?: unknown };
+  const message = typeof e.message === 'string' ? e.message : '';
+  // Quota à 0 = modèle non inclus dans le palier (ex. Nano Banana Pro en gratuit) : inutile de réessayer
+  if (/limit:\s*0\b/.test(message)) return false;
   const status =
     typeof e.status === 'number' ? e.status : typeof e.code === 'number' ? e.code : undefined;
   if (status !== undefined && RETRYABLE_STATUS.has(status)) return true;
-  const message = typeof e.message === 'string' ? e.message : '';
   return /UNAVAILABLE|RESOURCE_EXHAUSTED|high demand|overloaded|ECONNRESET|ETIMEDOUT|fetch failed/i.test(
     message,
   );
