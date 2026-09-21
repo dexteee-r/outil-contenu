@@ -73,9 +73,31 @@ seule clé (`KieProvider`, coût exact depuis les crédits consommés, 200 créd
   faute, intégré à la carte — esthétiquement supérieur au texte posé par code, mais sans garantie de
   police/couleurs de marque, et une génération de plus (0,09 $). Piste pour l'étape 5 : proposer les
   deux (texte code = sûr, texte modèle = variante « premium ») et laisser Markus choisir.
-- **GPT Image 2, Seedream 4.5, Ideogram V3 : 401 « The API key is not authorized to use this
-  model »** — pas un bug de notre côté : la clé kie.ai est restreinte par modèle. À vérifier dans les
-  réglages de la clé sur kie.ai/api-key (autorisations par modèle), puis relancer la comparaison.
+- Premier essai : GPT Image 2, Seedream et Ideogram en 401 « not authorized to use this model » —
+  restriction par modèle de la clé kie.ai, levée dans les réglages de la clé.
+
+**Second run (mêmes prompts, mêmes formats)** :
+
+| Modèle (via kie.ai) | Coût / image           | Temps | Visuel                                                                  | Texte par le modèle                                                                                                                                                                             |
+| ------------------- | ---------------------- | ----- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **GPT Image 2**     | **0,03 $** (6 crédits) | 68 s  | Carte dragon holographique en main, étincelles : excellent              | **Le meilleur** : « PULL VERGO OP10-004 » en jaune brossé façon miniature YouTube, sans faute — mais il a inventé une carte One Piece crédible (Trafalgar Law, texte japonais, numéro OP10-004) |
+| Nano Banana Pro     | 0,09 $ (18 crédits)    | 26 s  | Excellent, même registre                                                | Très bon : gravé en doré sur la carte, sans faute                                                                                                                                               |
+| Seedream 4.5        | 0,033 $ (6,5 crédits)  | 33 s  | Correct mais générique (carte style Yu-Gi-Oh, couleurs ternes)          | Bon : énorme titre jaune, carte « VERGO » au centre                                                                                                                                             |
+| Ideogram V3         | —                      | —     | 422 « input rejected » (filtre de contenu sur le prompt), non poursuivi | —                                                                                                                                                                                               |
+
+**Décisions :**
+
+- **GPT Image 2 par défaut** (le moins cher, le meilleur texte), **Nano Banana Pro en seconde
+  variante**. Seedream en réserve, Ideogram abandonné.
+- Le texte par le modèle est meilleur que le texte par code sur ces deux modèles : l'étape 5
+  produira **les deux** (texte code = police/couleurs de marque garanties, texte modèle = variante
+  « premium ») et Markus choisit.
+- **Point d'attention produit : l'IA invente une carte.** Pour une ouverture réelle, la miniature
+  doit montrer **la vraie carte tirée**, sinon c'est un faux pull. Le pipeline connaît l'instant du
+  climax (tagging S1) : l'étape 5 extraira **l'image réelle de la carte** et la donnera au modèle en
+  **image-to-image** (GPT Image 2 image-to-image, Nano Banana Pro `image_input`) pour la mettre en
+  scène, plutôt que de générer un visuel de zéro. Le text-to-image reste pour les contenus sans
+  objet précis (balades).
 
 Pièges rencontrés : Zod 4 — `.default({})` ne re-parse pas la valeur (les sous-défauts ne
 s'appliquent pas), utiliser `.prefault({})`.
