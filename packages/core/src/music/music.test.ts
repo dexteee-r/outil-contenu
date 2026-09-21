@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { loadMusicIndex, musicIndexSchema, selectTrack, type MusicIndex } from './index.js';
+import { hitSfxPath, loadSfxIndex } from './sfx.js';
 
 const index: MusicIndex = {
   tracks: [
@@ -80,5 +81,23 @@ describe('loadMusicIndex', () => {
     expect(
       musicIndexSchema.safeParse({ tracks: [{ ...index.tracks[0], license: undefined }] }).success,
     ).toBe(false);
+  });
+});
+
+describe('sfx', () => {
+  let dir: string;
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it('renvoie null sans index ou sans fichier, le chemin sinon', () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'outil-sfx-'));
+    expect(loadSfxIndex(dir)).toEqual({});
+    expect(hitSfxPath(dir)).toBeNull();
+    fs.writeFileSync(
+      path.join(dir, 'sfx.json'),
+      JSON.stringify({ hit: { file: 'h.mp3', license: 'CC0' } }),
+    );
+    expect(hitSfxPath(dir)).toBeNull(); // déclaré mais absent
+    fs.writeFileSync(path.join(dir, 'h.mp3'), 'x');
+    expect(hitSfxPath(dir)).toBe(path.join(dir, 'h.mp3'));
   });
 });

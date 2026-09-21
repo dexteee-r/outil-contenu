@@ -1,12 +1,15 @@
-import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { promisify } from 'node:util';
 import {
+  composeCardThumbnail,
   composeThumbnail,
+  cropByFraming,
   DEFAULT_THUMBNAIL_TEMPLATE,
   parseThumbnailTemplate,
+  pickSharpestFrame,
   THUMBNAIL_FORMATS,
+  type Edl,
+  type EdlFraming,
   type Highlight,
   type LoadedAccount,
   type TaggingResult,
@@ -14,33 +17,32 @@ import {
 import type { PipelineContext } from '../context.js';
 import type { PipelineState } from '../state.js';
 
-const execFileAsync = promisify(execFile);
-
 /** Le climax au meilleur score, sinon le meilleur moment fort, sinon null. */
 export function pickKeyMoment(tagging: TaggingResult): Highlight | null {
   const sorted = [...tagging.highlights].sort((a, b) => b.score - a.score);
   return sorted.find((h) => h.kind === 'climax') ?? sorted[0] ?? null;
 }
 
-/** Extrait une image PNG du clip à l'instant donné (ffmpeg). */
-export async function extractFrame(clipPath: string, atSec: number, out: string): Promise<string> {
-  fs.mkdirSync(path.dirname(out), { recursive: true });
-  await execFileAsync('ffmpeg', [
-    '-y',
-    '-ss',
-    atSec.toFixed(3),
-    '-i',
-    clipPath,
-    '-frames:v',
-    '1',
-    '-q:v',
-    '2',
-    out,
-  ]);
-  return out;
+/** Instants candidats pour l'image clé : la fin du moment (présentation à la caméra) avant le début. */
+export function keyFrameCandidates(moment: Highlight, clipDurationSec: number): number[] {
+  const end = Math.min(moment.end, clipDurationSec - 0.1);
+  const span = Math.max(0, end - moment.start);
+  return [end - 0.3, end - 0.8, moment.start + span * 0.6, moment.start + Math.min(1, span / 2)]
+    .map((t) => Math.min(end, Math.max(moment.start, t)))
+    .filter((t) => t >= 0);
 }
 
-/** Prompt de visuel de fond : la scène du climax + la charte du compte, sans texte. */
+/** Zoom max appliqué à l'image clé : la vignette doit montrer l'objet entier, pas un détail. */
+export const KEY_FRAME_MAX_ZOOM = 1.3;
+
+/** Cadrage du segment EDL qui couvre l'instant (même point de focus que la vidéo, zoom plafonné), sinon plein cadre. */
+export function framingAt(edl: Edl | undefined, clipId: string, atSec: number): EdlFraming {
+  const seg = edl?.segments.find((s) => s.clipId === clipId && s.in <= atSec && atSec <= s.out);
+  if (!seg) return { zoom: 1, focusX: 0.5, focusY: 0.5 };
+  return { ...seg.framing, zoom: Math.min(seg.framing.zoom, KEY_FRAME_MAX_ZOOM) };
+}
+
+/** Prompt de visuel de fond (style photo) : la scène du climax + la charte du compte, sans texte. */
 export function buildBackgroundPrompt(
   account: LoadedAccount,
   tagging: TaggingResult,
@@ -56,9 +58,10 @@ export function buildBackgroundPrompt(
 }
 
 /**
- * Miniature du walking skeleton : une variante × deux formats. Le fond est généré par l'IA
- * (kie.ai) quand le fournisseur est configuré, sinon c'est l'image réelle du climax. Le titre vient
- * de l'étape captions et est posé par code sur le gabarit du compte.
+ * Miniatures : une variante × deux formats.
+ * - style `card` (défaut) : l'image réelle du moment clé — la plus nette parmi plusieurs instants,
+ *   recadrée avec le zoom du montage — en vignette sur fond de marque, titre et appel à l'action.
+ * - style `photo` : visuel plein cadre généré (kie.ai) ou image clé en repli, voile + titre.
  */
 export async function thumbnail(
   p: PipelineContext,
@@ -68,21 +71,56 @@ export async function thumbnail(
   const { tagging, clips } = state;
   if (!tagging || !clips) throw new Error('thumbnail : tagging manquant');
   const title = state.thumbnailTitle ?? account.config.displayName;
+  const template = fs.existsSync(account.files.thumbnailTemplate)
+    ? parseThumbnailTemplate(JSON.parse(fs.readFileSync(account.files.thumbnailTemplate, 'utf8')))
+    : DEFAULT_THUMBNAIL_TEMPLATE;
+  const logo =
+    account.files.logo && fs.existsSync(account.files.logo)
+      ? fs.readFileSync(account.files.logo)
+      : undefined;
 
-  // 1. Image réelle du moment clé : toujours extraite (repli, et base de l'image-to-image de l'étape 5)
+  // 1. Image clé réelle : instant le plus net du moment clé, cadrée comme dans la vidéo
   const moment = pickKeyMoment(tagging);
   const clip = moment ? clips.find((c) => c.id === moment.clipId) : clips[0];
+  if (!clip) throw new Error('thumbnail : aucun clip');
+  const candidates = moment ? keyFrameCandidates(moment, clip.durationSec) : [clip.durationSec / 2];
+  const best = await pickSharpestFrame(clip.path, candidates, path.join(state.workDir, 'frames'));
+  const framing = framingAt(state.edl, clip.id, best.atSec);
+  const keyFrame = await cropByFraming(best.path, framing);
   const framePath = path.join(state.workDir, 'key-frame.png');
-  if (clip) {
-    const at = moment
-      ? moment.start + Math.min(1, (moment.end - moment.start) / 2)
-      : clip.durationSec / 2;
-    await extractFrame(clip.path, Math.min(at, Math.max(0, clip.durationSec - 0.1)), framePath);
-    p.log(`thumbnail : image clé ${clip.id} @ ${at.toFixed(1)} s`);
+  fs.writeFileSync(framePath, keyFrame);
+  fs.rmSync(path.join(state.workDir, 'frames'), { recursive: true, force: true });
+  p.log(
+    `thumbnail : image clé ${clip.id} @ ${best.atSec.toFixed(1)} s (netteté ${best.sharpness.toFixed(1)}, zoom ${framing.zoom})`,
+  );
+
+  state.thumbnails = [];
+  if (template.style === 'card') {
+    for (const format of THUMBNAIL_FORMATS) {
+      const composed = await composeCardThumbnail({
+        keyFrame,
+        format,
+        template,
+        brand: account.config.brand,
+        title,
+        logo,
+      });
+      const file = path.join(state.workDir, `thumb-${format}-v1.png`);
+      fs.writeFileSync(file, composed.png);
+      state.thumbnails.push({
+        path: file,
+        format,
+        variant: 1,
+        selected: true,
+        background: 'frame',
+      });
+    }
+    p.log(`thumbnail : style card, titre « ${title} », CTA « ${template.cta ?? '—'} »`);
+    return;
   }
 
-  // 2. Fond : IA si disponible, sinon l'image clé
-  let background: Buffer;
+  // 2. Style photo : fond IA si disponible, sinon l'image clé
+  let background = keyFrame;
   let source: 'ai' | 'frame' = 'frame';
   const kie = p.kie();
   const model = p.ctx.env.MODEL_IMAGE;
@@ -109,24 +147,8 @@ export async function thumbnail(
       p.log(
         `thumbnail : génération IA échouée (${err instanceof Error ? err.message : String(err)}) — repli sur l'image clé`,
       );
-      background = fs.readFileSync(framePath);
     }
-  } else {
-    if (!fs.existsSync(framePath))
-      throw new Error('thumbnail : ni fournisseur d’images ni image clé');
-    background = fs.readFileSync(framePath);
-    p.log('thumbnail : pas de fournisseur d’images configuré — image clé utilisée');
   }
-
-  // 3. Composition sur le gabarit du compte, dans les deux formats
-  const template = fs.existsSync(account.files.thumbnailTemplate)
-    ? parseThumbnailTemplate(JSON.parse(fs.readFileSync(account.files.thumbnailTemplate, 'utf8')))
-    : DEFAULT_THUMBNAIL_TEMPLATE;
-  const logo =
-    account.files.logo && fs.existsSync(account.files.logo)
-      ? fs.readFileSync(account.files.logo)
-      : undefined;
-  state.thumbnails = [];
   for (const format of THUMBNAIL_FORMATS) {
     const composed = await composeThumbnail({
       background,
@@ -140,5 +162,5 @@ export async function thumbnail(
     fs.writeFileSync(file, composed.png);
     state.thumbnails.push({ path: file, format, variant: 1, selected: true, background: source });
   }
-  p.log(`thumbnail : ${state.thumbnails.length} fichiers, titre « ${title} »`);
+  p.log(`thumbnail : style photo (${source}), titre « ${title} »`);
 }

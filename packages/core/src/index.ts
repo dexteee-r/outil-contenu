@@ -25,3 +25,6 @@ export * from './providers/retry.js';
 export * from './providers/kie.js';
 export * from './providers/anthropic.js';
 export * from './music/index.js';
+export * from './music/sfx.js';
+export * from './thumbnails/card.js';
+export * from './images/frames.js';

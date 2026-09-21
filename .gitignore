@@ -30,3 +30,6 @@ music/*
 .DS_Store
 Thumbs.db
 *.log
+sfx/*
+!sfx/sfx.json
+!sfx/README.md

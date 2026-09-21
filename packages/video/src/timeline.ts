@@ -1,4 +1,4 @@
-import type { ClipInfo, Edl, OverlayStyle } from '@outil/core';
+import type { ClipInfo, Edl, EdlFraming, EffectType, OverlayStyle } from '@outil/core';
 
 /**
  * Conversion pure EDL (secondes) → timeline Remotion (frames).
@@ -16,6 +16,20 @@ export interface TimelineSegment {
   startFromFrame: number;
   endAtFrame: number;
   playbackRate: number;
+  framing: EdlFraming;
+  /** Flou CSS en px (0 = net) */
+  blur: number;
+}
+
+export interface TimelineEffect {
+  type: EffectType;
+  /** Frame de déclenchement sur la timeline de sortie */
+  at: number;
+}
+
+export interface TimelineSfx {
+  /** Son joué sur les effets  (null = muet) */
+  hit: string | null;
 }
 
 export interface TimelineOverlay {
@@ -39,7 +53,9 @@ export interface Timeline {
   durationInFrames: number;
   segments: TimelineSegment[];
   overlays: TimelineOverlay[];
+  effects: TimelineEffect[];
   music: TimelineMusic | null;
+  sfx: TimelineSfx;
 }
 
 export const DEFAULT_FPS = 30;
@@ -53,6 +69,7 @@ export interface BuildTimelineOptions {
   /** Comment le navigateur de rendu atteint un clip (URL http locale, staticFile…) */
   srcFor: (clip: ClipInfo) => string;
   music?: { src: string; volume?: number } | null;
+  sfx?: Partial<TimelineSfx>;
   fps?: number;
 }
 
@@ -73,6 +90,8 @@ export function buildTimeline(o: BuildTimelineOptions): Timeline {
       startFromFrame: toFrames(s.in, fps),
       endAtFrame: toFrames(s.out, fps),
       playbackRate: s.speed,
+      framing: s.framing,
+      blur: s.blur,
     };
     cursor += durationInFrames;
     return seg;
@@ -85,6 +104,11 @@ export function buildTimeline(o: BuildTimelineOptions): Timeline {
     return { text: ov.text, style: ov.style, from, durationInFrames: Math.max(1, to - from) };
   });
 
+  const effects: TimelineEffect[] = o.edl.effects.map((e) => ({
+    type: e.type,
+    at: Math.min(toFrames(e.at, fps), durationInFrames - 1),
+  }));
+
   const music: TimelineMusic | null = o.music
     ? {
         src: o.music.src,
@@ -93,7 +117,16 @@ export function buildTimeline(o: BuildTimelineOptions): Timeline {
       }
     : null;
 
-  return { fps, ...OUTPUT_SIZE, durationInFrames, segments, overlays, music };
+  return {
+    fps,
+    ...OUTPUT_SIZE,
+    durationInFrames,
+    segments,
+    overlays,
+    effects,
+    music,
+    sfx: { hit: o.sfx?.hit ?? null },
+  };
 }
 
 /** Volume de la musique à une frame donnée (fondu de sortie linéaire). */
@@ -106,4 +139,35 @@ export function musicVolumeAt(
   if (music.fadeOutFrames <= 0 || frame <= fadeStart) return music.volume;
   const t = Math.min(1, (frame - fadeStart) / music.fadeOutFrames);
   return music.volume * (1 - t);
+}
+
+/** Durée de l'effet « hit » en frames à 30 fps (flash, coup de zoom, étincelles). */
+export const HIT_EFFECT_FRAMES = 24;
+
+/**
+ * Coup de zoom global à une frame donnée : 1 hors effet ; sur un « hit », monte à 1.12 en 4 frames
+ * puis redescend à 1 sur le reste de l'effet (pur, testable).
+ */
+export function punchScaleAt(frame: number, effects: TimelineEffect[]): number {
+  let scale = 1;
+  for (const e of effects) {
+    if (e.type !== 'hit') continue;
+    const t = frame - e.at;
+    if (t < 0 || t >= HIT_EFFECT_FRAMES) continue;
+    const s = t < 4 ? 1 + 0.12 * (t / 4) : 1 + 0.12 * (1 - (t - 4) / (HIT_EFFECT_FRAMES - 4));
+    scale = Math.max(scale, s);
+  }
+  return scale;
+}
+
+/** Opacité du flash blanc d'un « hit » : 0,85 à la frame de l'effet, 0 après 8 frames. */
+export function flashOpacityAt(frame: number, effects: TimelineEffect[]): number {
+  let opacity = 0;
+  for (const e of effects) {
+    if (e.type !== 'hit') continue;
+    const t = frame - e.at;
+    if (t < 0 || t >= 8) continue;
+    opacity = Math.max(opacity, 0.85 * (1 - t / 8));
+  }
+  return opacity;
 }

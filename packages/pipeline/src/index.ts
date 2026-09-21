@@ -9,3 +9,4 @@ export * from './steps/thumbnail.js';
 export * from './steps/qc.js';
 export * from './steps/deliver.js';
 export * from './steps/ingest.js';
+export * from './steps/tag.js';

@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { edlDurationSec, edlSchema, formatEdlIssues, validateEdl, type Edl } from './edl.js';
 import { loadReferenceClips, loadReferenceEdl } from './fixtures.js';
 
+/** Cadrage plein et net : les tests ne portent pas sur le rendu */
+const NEUTRAL = { framing: { zoom: 1, focusX: 0.5, focusY: 0.5 }, blur: 0 };
+
 const clips = loadReferenceClips();
 const reference = loadReferenceEdl();
 const range = { min: 15, max: 60 };
@@ -21,7 +24,9 @@ describe('edlSchema', () => {
   it('refuse une mauvaise version, une vitesse hors bornes, un overlay trop long', () => {
     expect(edlSchema.safeParse({ ...reference, version: 2 }).success).toBe(false);
     expect(
-      edlSchema.safeParse(withSegments([{ clipId: 'rush-01', in: 0, out: 5, speed: 3 }])).success,
+      edlSchema.safeParse(
+        withSegments([{ clipId: 'rush-01', in: 0, out: 5, speed: 3, ...NEUTRAL }]),
+      ).success,
     ).toBe(false);
     expect(
       edlSchema.safeParse({
@@ -34,9 +39,9 @@ describe('edlSchema', () => {
 
 describe('edlDurationSec', () => {
   it('tient compte de la vitesse', () => {
-    expect(edlDurationSec(withSegments([{ clipId: 'rush-01', in: 0, out: 6, speed: 1.5 }]))).toBe(
-      4,
-    );
+    expect(
+      edlDurationSec(withSegments([{ clipId: 'rush-01', in: 0, out: 6, speed: 1.5, ...NEUTRAL }])),
+    ).toBe(4);
     expect(edlDurationSec(reference)).toBeCloseTo(25.667, 2);
   });
 });
@@ -49,10 +54,13 @@ describe('validateEdl', () => {
   });
 
   it('signale un clip inexistant', () => {
-    const r = validateEdl(withSegments([{ clipId: 'rush-99', in: 0, out: 20, speed: 1 }]), {
-      clips,
-      durationRange: range,
-    });
+    const r = validateEdl(
+      withSegments([{ clipId: 'rush-99', in: 0, out: 20, speed: 1, ...NEUTRAL }]),
+      {
+        clips,
+        durationRange: range,
+      },
+    );
     expect(r.ok).toBe(false);
     expect(r.issues).toHaveLength(1);
     expect(r.issues[0]?.path).toBe('segments[0]');
@@ -62,8 +70,8 @@ describe('validateEdl', () => {
   it('signale in >= out et out hors du clip', () => {
     const r = validateEdl(
       withSegments([
-        { clipId: 'rush-01', in: 10, out: 10, speed: 1 },
-        { clipId: 'rush-02', in: 0, out: 30, speed: 1 },
+        { clipId: 'rush-01', in: 10, out: 10, speed: 1, ...NEUTRAL },
+        { clipId: 'rush-02', in: 0, out: 30, speed: 1, ...NEUTRAL },
       ]),
       { clips, durationRange: range },
     );
@@ -80,17 +88,20 @@ describe('validateEdl', () => {
   });
 
   it('signale une durée totale hors plage et un segment trop court', () => {
-    const tooShort = validateEdl(withSegments([{ clipId: 'rush-01', in: 0, out: 5, speed: 1 }]), {
-      clips,
-      durationRange: range,
-    });
+    const tooShort = validateEdl(
+      withSegments([{ clipId: 'rush-01', in: 0, out: 5, speed: 1, ...NEUTRAL }]),
+      {
+        clips,
+        durationRange: range,
+      },
+    );
     expect(tooShort.ok).toBe(false);
     expect(tooShort.issues[0]?.message).toContain('durée totale 5.00 s hors plage [15, 60]');
 
     const flash = validateEdl(
       withSegments([
-        { clipId: 'rush-01', in: 0, out: 0.2, speed: 1 },
-        { clipId: 'rush-01', in: 1, out: 21, speed: 1 },
+        { clipId: 'rush-01', in: 0, out: 0.2, speed: 1, ...NEUTRAL },
+        { clipId: 'rush-01', in: 1, out: 21, speed: 1, ...NEUTRAL },
       ]),
       { clips, durationRange: range },
     );
@@ -105,6 +116,7 @@ describe('validateEdl', () => {
       in: k * 4,
       out: k * 4 + 4,
       speed: 1,
+      ...NEUTRAL,
     }));
     const r = validateEdl(withSegments(many), { clips, durationRange: range, maxSegments: 4 });
     expect(r.ok).toBe(false);
@@ -112,7 +124,7 @@ describe('validateEdl', () => {
   });
 
   it('contrôle les overlays : bornes, dépassement, chevauchement', () => {
-    const segs: Edl['segments'] = [{ clipId: 'rush-01', in: 0, out: 20, speed: 1 }];
+    const segs: Edl['segments'] = [{ clipId: 'rush-01', in: 0, out: 20, speed: 1, ...NEUTRAL }];
     const r = validateEdl(
       withSegments(segs, [
         { text: 'A', style: 'hook', from: 0, to: 3 },
@@ -130,10 +142,13 @@ describe('validateEdl', () => {
   });
 
   it('tolère les arrondis aux bornes', () => {
-    const r = validateEdl(withSegments([{ clipId: 'rush-02', in: 0, out: 18.52, speed: 1 }]), {
-      clips,
-      durationRange: range,
-    });
+    const r = validateEdl(
+      withSegments([{ clipId: 'rush-02', in: 0, out: 18.52, speed: 1, ...NEUTRAL }]),
+      {
+        clips,
+        durationRange: range,
+      },
+    );
     expect(r.ok).toBe(true);
   });
 });

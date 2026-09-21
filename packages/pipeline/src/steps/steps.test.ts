@@ -22,7 +22,13 @@ import { makeTestContext, writeTestAccount } from '../test-helpers.js';
 import { buildEdlRequest, edl, taggingForPrompt } from './edl.js';
 import { buildMetadata } from './deliver.js';
 import { checkOutputs } from './qc.js';
-import { buildBackgroundPrompt, pickKeyMoment, thumbnail } from './thumbnail.js';
+import {
+  buildBackgroundPrompt,
+  framingAt,
+  keyFrameCandidates,
+  pickKeyMoment,
+  thumbnail,
+} from './thumbnail.js';
 
 const clips = loadReferenceClips();
 const referenceEdl = loadReferenceEdl();
@@ -115,7 +121,10 @@ describe('edl step', () => {
     const ctx = makeTestContext(dir);
     db = openDb({ file: ':memory:' });
     const p = createPipelineContext(ctx, db, () => {});
-    const bad = { ...referenceEdl, segments: [{ clipId: 'rush-99', in: 0, out: 20, speed: 1 }] };
+    const bad = {
+      ...referenceEdl,
+      segments: [{ ...referenceEdl.segments[0]!, clipId: 'rush-99', in: 0, out: 20 }],
+    };
     const responses = [bad, referenceEdl];
     const sent: { messages: { role: string; content: string }[] }[] = [];
     const sdk: AnthropicSdk = {
@@ -216,6 +225,25 @@ describe('thumbnail step (repli image clé, ffmpeg réel)', () => {
     );
     expect(fs.existsSync(path.join(state.workDir, 'key-frame.png'))).toBe(true);
   }, 60_000);
+
+  it('candidats d’image clé et cadrage du segment couvrant', () => {
+    const moment = {
+      clipId: 'rush-01',
+      start: 27.5,
+      end: 33,
+      score: 0.9,
+      kind: 'climax' as const,
+      reason: 'x',
+    };
+    const cands = keyFrameCandidates(moment, 42);
+    expect(cands[0]).toBeCloseTo(32.7);
+    expect(cands.every((t) => t >= 27.5 && t <= 33)).toBe(true);
+    expect(keyFrameCandidates({ ...moment, end: 50 }, 42).every((t) => t <= 41.9)).toBe(true);
+    expect(framingAt(referenceEdl, 'rush-01', 30)).toEqual({ zoom: 1.3, focusX: 0.5, focusY: 0.5 }); // 1.6 plafonné
+    expect(framingAt(referenceEdl, 'rush-02', 5).zoom).toBe(1.2);
+    expect(framingAt(referenceEdl, 'rush-01', 4)).toEqual({ zoom: 1, focusX: 0.5, focusY: 0.5 });
+    expect(framingAt(undefined, 'rush-01', 30).zoom).toBe(1);
+  });
 
   it('pickKeyMoment et buildBackgroundPrompt', () => {
     expect(pickKeyMoment(tagging)?.kind).toBe('climax');

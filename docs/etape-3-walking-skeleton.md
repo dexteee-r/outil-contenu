@@ -3,15 +3,15 @@
 **Résultat : validé bout-en-bout sur de vrais rushs.** `pnpm content run --account tcg --input E:/contenu/raw/tcg/2026-08-05`
 (3 `.mov` iPhone, 34 s au total) a produit sans intervention, en **3 min 13 s** :
 
-| Étape | Durée | Résultat |
-| --- | --- | --- |
-| ingest | 1 s | 3 rushs copiés, sondés (1080x1920, audio) |
-| tag (Gemini 3.7 Flash) | 17 s | climax `part-3` 16,5 → 22,0 s (0,85), 2 moments forts, 0 incohérence |
-| edl (Claude Sonnet 5) | 17 s | **valide à la première tentative** : 6 segments, 23,8 s, hook « QUELLE CARTE VA SORTIR ? », callout « C'EST VERGO ! » sur le climax, musique `hype` 130-150 bpm |
-| render (Remotion) | 67 s (dont téléchargement de Chrome, une fois) | 1080x1920, 23,83 s, sans musique (bibliothèque vide) |
-| captions (Claude) | 10 s | 3 plateformes + titre de miniature « C'EST VERGO » |
-| thumbnail (GPT Image 2 via kie.ai) | 82 s | 2 formats, 0,03 $ |
-| qc / deliver / notify | < 1 s | `E:\contenu\ready\tcg\tcg-2026-08-05-80e5\` + `metadata.json` + `work/` ; webhooks non configurés, ignorés |
+| Étape                              | Durée                                          | Résultat                                                                                                                                                        |
+| ---------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ingest                             | 1 s                                            | 3 rushs copiés, sondés (1080x1920, audio)                                                                                                                       |
+| tag (Gemini 3.7 Flash)             | 17 s                                           | climax `part-3` 16,5 → 22,0 s (0,85), 2 moments forts, 0 incohérence                                                                                            |
+| edl (Claude Sonnet 5)              | 17 s                                           | **valide à la première tentative** : 6 segments, 23,8 s, hook « QUELLE CARTE VA SORTIR ? », callout « C'EST VERGO ! » sur le climax, musique `hype` 130-150 bpm |
+| render (Remotion)                  | 67 s (dont téléchargement de Chrome, une fois) | 1080x1920, 23,83 s, sans musique (bibliothèque vide)                                                                                                            |
+| captions (Claude)                  | 10 s                                           | 3 plateformes + titre de miniature « C'EST VERGO »                                                                                                              |
+| thumbnail (GPT Image 2 via kie.ai) | 82 s                                           | 2 formats, 0,03 $                                                                                                                                               |
+| qc / deliver / notify              | < 1 s                                          | `E:\contenu\ready\tcg\tcg-2026-08-05-80e5\` + `metadata.json` + `work/` ; webhooks non configurés, ignorés                                                      |
 
 Coût enregistré : **0,062 $** (EDL 0,022 + légendes 0,010 + image 0,030 ; tagging sur palier gratuit).
 

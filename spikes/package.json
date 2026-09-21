@@ -9,7 +9,8 @@
     "s2": "tsx s2-render/run.ts",
     "s3": "tsx s3-thumbnail/run.ts",
     "s4": "tsx s4-tray/run.ts",
-    "models": "tsx list-models.ts"
+    "models": "tsx list-models.ts",
+    "card": "tsx card-preview.ts"
   },
   "dependencies": {
     "@google/genai": "^2.23.0",

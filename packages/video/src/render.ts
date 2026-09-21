@@ -37,6 +37,8 @@ export interface RenderEdlOptions {
   /** Fichier MP4 de sortie */
   out: string;
   music?: { path: string; volume?: number } | null;
+  /** Sons des effets (fichiers locaux) */
+  sfx?: { hit?: string | null };
   fps?: number;
   /** Bundle déjà construit (sinon bundle à la volée) */
   serveUrl?: string;
@@ -67,6 +69,7 @@ export async function renderEdl(o: RenderEdlOptions): Promise<RenderEdlResult> {
       music: musicSrc
         ? { src: musicSrc, ...(o.music?.volume !== undefined ? { volume: o.music.volume } : {}) }
         : null,
+      sfx: { hit: o.sfx?.hit ? media.mount(o.sfx.hit) : null },
     };
     const timeline = buildTimeline(timelineOptions);
     const inputProps = { timeline };

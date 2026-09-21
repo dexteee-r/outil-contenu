@@ -1,6 +1,15 @@
 import { loadReferenceClips, loadReferenceEdl } from '@outil/core';
 import { describe, expect, it } from 'vitest';
-import { buildTimeline, musicVolumeAt } from './timeline';
+import {
+  buildTimeline,
+  flashOpacityAt,
+  HIT_EFFECT_FRAMES,
+  musicVolumeAt,
+  punchScaleAt,
+} from './timeline';
+
+/** Cadrage plein et net : les tests ne portent pas sur le rendu */
+const NEUTRAL = { framing: { zoom: 1, focusX: 0.5, focusY: 0.5 }, blur: 0 };
 
 const clips = loadReferenceClips();
 const edl = loadReferenceEdl();
@@ -20,6 +29,8 @@ describe('buildTimeline', () => {
       startFromFrame: 180,
       endAtFrame: 300,
       playbackRate: 1.5,
+      framing: { zoom: 1.4, focusX: 0.5, focusY: 0.5 },
+      blur: 0,
     });
     // les segments s'enchaînent sans trou
     for (let i = 1; i < t.segments.length; i++) {
@@ -57,7 +68,7 @@ describe('buildTimeline', () => {
   it('refuse un clip inconnu', () => {
     expect(() =>
       buildTimeline({
-        edl: { ...edl, segments: [{ clipId: 'x', in: 0, out: 1, speed: 1 }] },
+        edl: { ...edl, segments: [{ clipId: 'x', in: 0, out: 1, speed: 1, ...NEUTRAL }] },
         clips,
         srcFor,
       }),
@@ -72,5 +83,32 @@ describe('musicVolumeAt', () => {
     expect(musicVolumeAt(270, music, 300)).toBe(0.5);
     expect(musicVolumeAt(285, music, 300)).toBeCloseTo(0.25);
     expect(musicVolumeAt(300, music, 300)).toBe(0);
+  });
+});
+
+describe('effets « hit »', () => {
+  it('convertit les effets en frames et les borne à la durée', () => {
+    const t = buildTimeline({ edl, clips, srcFor, fps: 30 });
+    expect(t.effects).toEqual([{ type: 'hit', at: 312 }]);
+    expect(t.sfx).toEqual({ hit: null });
+    const withSfx = buildTimeline({ edl, clips, srcFor, sfx: { hit: 'hit.mp3' } });
+    expect(withSfx.sfx.hit).toBe('hit.mp3');
+  });
+
+  it('coup de zoom : monte à 1,12 en 4 frames puis redescend, 1 hors effet', () => {
+    const effects = [{ type: 'hit' as const, at: 100 }];
+    expect(punchScaleAt(50, effects)).toBe(1);
+    expect(punchScaleAt(100, effects)).toBe(1);
+    expect(punchScaleAt(104, effects)).toBeCloseTo(1.12);
+    expect(punchScaleAt(100 + HIT_EFFECT_FRAMES - 1, effects)).toBeGreaterThan(1);
+    expect(punchScaleAt(100 + HIT_EFFECT_FRAMES, effects)).toBe(1);
+  });
+
+  it('flash : 0,85 à la frame de l’effet, décroît sur 8 frames', () => {
+    const effects = [{ type: 'hit' as const, at: 10 }];
+    expect(flashOpacityAt(9, effects)).toBe(0);
+    expect(flashOpacityAt(10, effects)).toBeCloseTo(0.85);
+    expect(flashOpacityAt(14, effects)).toBeCloseTo(0.425);
+    expect(flashOpacityAt(18, effects)).toBe(0);
   });
 });

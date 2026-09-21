@@ -1,5 +1,15 @@
 import path from 'node:path';
-import { edlDurationSec, loadMusicIndex, musicDir, probeVideo, selectTrack } from '@outil/core';
+import fs from 'node:fs';
+import {
+  edlDurationSec,
+  hitSfxPath,
+  loadMusicIndex,
+  makeSyntheticHitSfx,
+  musicDir,
+  probeVideo,
+  selectTrack,
+  sfxDir,
+} from '@outil/core';
 import { renderEdl } from '@outil/video';
 import type { PipelineContext } from '../context.js';
 import type { PipelineState } from '../state.js';
@@ -23,6 +33,17 @@ export async function render(p: PipelineContext, state: PipelineState): Promise<
     p.log(`render : aucune piste « ${edl.music.mood} » dans music/music.json — rendu sans musique`);
   }
 
+  // Son des effets « hit » : bibliothèque sfx/, sinon substitution synthétique mise en cache
+  let hitSfx: string | null = null;
+  if (edl.effects.some((e) => e.type === 'hit')) {
+    hitSfx = hitSfxPath(sfxDir(p.ctx.repoRoot));
+    if (!hitSfx) {
+      hitSfx = path.join(p.ctx.paths.root, 'cache', 'sfx-hit-placeholder.mp3');
+      if (!fs.existsSync(hitSfx)) await makeSyntheticHitSfx(hitSfx);
+      p.log('render : pas de son « hit » dans sfx/sfx.json — son de substitution');
+    }
+  }
+
   const out = path.join(state.workDir, 'video.mp4');
   let last = -20;
   const result = await renderEdl({
@@ -30,6 +51,7 @@ export async function render(p: PipelineContext, state: PipelineState): Promise<
     clips,
     out,
     music: state.music ? { path: state.music.file } : null,
+    sfx: { hit: hitSfx },
     onProgress: (percent) => {
       if (percent >= last + 20) {
         last = percent;

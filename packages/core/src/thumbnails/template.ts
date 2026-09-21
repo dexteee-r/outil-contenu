@@ -45,8 +45,18 @@ const colorRef = z.union([
 ]);
 export type ColorRef = z.infer<typeof colorRef>;
 
+export const THUMBNAIL_STYLES = ['card', 'photo'] as const;
+export type ThumbnailStyle = (typeof THUMBNAIL_STYLES)[number];
+
 export const thumbnailTemplateSchema = z
   .object({
+    /**
+     * card : la vraie image clé en vignette inclinée sur fond de marque + titre + appel à l'action
+     * (simple, moderne, zéro IA). photo : visuel plein cadre (IA ou image clé) + voile + titre.
+     */
+    style: z.enum(THUMBNAIL_STYLES).default('card'),
+    /** Pastille d'appel à l'action du style card (null = aucune) */
+    cta: z.string().min(1).max(24).nullable().default('REGARDE'),
     formats: z
       .object({
         '9x16': formatTemplateSchema.prefault({

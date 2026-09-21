@@ -5,6 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { probeVideo } from './ffprobe.js';
 import {
   makeSyntheticClip,
+  makeSyntheticHitSfx,
   makeSyntheticMusic,
   syntheticClipArgs,
   syntheticMusicArgs,
@@ -52,6 +53,11 @@ describe('makeSyntheticClip / makeSyntheticMusic (ffmpeg réel)', () => {
     expect(probe.hasAudio).toBe(true);
     expect(probe.durationSec).toBeGreaterThan(1.9);
     expect(probe.durationSec).toBeLessThan(2.3);
+  }, 30_000);
+
+  it('produit un son « hit » court', async () => {
+    const out = await makeSyntheticHitSfx(path.join(dir, 'hit.mp3'));
+    expect(fs.statSync(out).size).toBeGreaterThan(500);
   }, 30_000);
 
   it('produit une piste audio mp3', async () => {

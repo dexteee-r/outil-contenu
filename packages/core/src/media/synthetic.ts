@@ -100,3 +100,26 @@ export async function makeSyntheticMusic(o: {
   await execFileAsync('ffmpeg', syntheticMusicArgs(o), { maxBuffer: 16 * 1024 * 1024 });
   return o.out;
 }
+
+/** Son « hit » de substitution : deux notes montantes (0,5 s) avec enveloppe, en attendant un vrai SFX. */
+export function syntheticHitSfxArgs(out: string): string[] {
+  const expr = '0.6*(sin(2*PI*880*t)+0.5*sin(2*PI*1320*t))*exp(-6*t)*(1-exp(-200*t))';
+  return [
+    '-y',
+    '-f',
+    'lavfi',
+    '-i',
+    `aevalsrc=exprs='${expr}':s=44100:d=0.5`,
+    '-c:a',
+    'libmp3lame',
+    '-b:a',
+    '128k',
+    out,
+  ];
+}
+
+export async function makeSyntheticHitSfx(out: string): Promise<string> {
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  await execFileAsync('ffmpeg', syntheticHitSfxArgs(out), { maxBuffer: 16 * 1024 * 1024 });
+  return out;
+}

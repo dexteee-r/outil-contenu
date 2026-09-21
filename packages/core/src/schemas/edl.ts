@@ -16,12 +16,25 @@ export type OverlayStyle = (typeof OVERLAY_STYLES)[number];
 
 const seconds = z.number().nonnegative();
 
+/** Cadrage d'un segment : zoom (1 = plein cadre) centré sur un point de l'image (fractions 0..1). */
+export const edlFramingSchema = z
+  .object({
+    zoom: z.number().min(1).max(2.5),
+    focusX: z.number().min(0).max(1),
+    focusY: z.number().min(0).max(1),
+  })
+  .strict();
+export type EdlFraming = z.infer<typeof edlFramingSchema>;
+
 export const edlSegmentSchema = z
   .object({
     clipId: z.string().min(1),
     in: seconds,
     out: seconds,
     speed: z.number().min(0.5).max(2), // 1 = vitesse normale
+    framing: edlFramingSchema,
+    /** Flou en pixels (0 = net) : sert à teaser le climax sans le révéler */
+    blur: z.number().min(0).max(40),
   })
   .strict();
 export type EdlSegment = z.infer<typeof edlSegmentSchema>;
@@ -47,12 +60,25 @@ export const edlMusicSchema = z
   .strict();
 export type EdlMusic = z.infer<typeof edlMusicSchema>;
 
+export const EFFECT_TYPES = ['hit'] as const;
+export type EffectType = (typeof EFFECT_TYPES)[number];
+
+/** Événement ponctuel sur la timeline de sortie :  = flash + coup de zoom + étincelles + son. */
+export const edlEffectSchema = z
+  .object({
+    type: z.enum(EFFECT_TYPES),
+    at: seconds,
+  })
+  .strict();
+export type EdlEffect = z.infer<typeof edlEffectSchema>;
+
 export const edlSchema = z
   .object({
     version: z.literal(EDL_VERSION),
     targetDurationSec: z.number().positive(),
     segments: z.array(edlSegmentSchema).min(1),
     overlays: z.array(edlOverlaySchema),
+    effects: z.array(edlEffectSchema),
     music: edlMusicSchema,
     notes: z.string(), // justification courte du montage, utile pour le feedback
   })
@@ -166,6 +192,15 @@ export function validateEdl(edl: Edl, options: EdlValidationOptions): EdlValidat
       });
     }
   }
+
+  edl.effects.forEach((e, i) => {
+    if (e.at > totalDurationSec + tol) {
+      issues.push({
+        path: `effects[${i}]`,
+        message: `at (${e.at}) dépasse la durée de sortie (${totalDurationSec.toFixed(2)} s)`,
+      });
+    }
+  });
 
   return issues.length === 0
     ? { ok: true, totalDurationSec, issues: [] }

@@ -13,4 +13,4 @@ Réponds uniquement en JSON conforme au schéma imposé, en français sauf indic
 - Les hashtags sont donnés dans `hashtags` (avec ou sans `#`), pas dans `description`.
 - Ne révèle pas le climax dans le titre si le montage repose sur la surprise ; suggère-le.
 - Pas d'emoji dans `title` ; emojis sobres autorisés dans `description`.
-- `thumbnailTitle` : le texte à incruster sur la miniature — 2 à 5 mots, en majuscules, percutant, sans ponctuation finale, ≤ 32 caractères (ex. « PULL ULTRA RARE », « ELLE EST SORTIE »).
+- `thumbnailTitle` : le texte incrusté sur la miniature, à côté de l'image réelle du moment clé — 2 à 4 mots, en majuscules, une émotion ou un nom (« C'EST VERGO », « PULL DE FOU », « ELLE EST SORTIE »), jamais une description de l'image (pas de « gros plan », « carte », « vidéo »), sans ponctuation finale, ≤ 24 caractères.

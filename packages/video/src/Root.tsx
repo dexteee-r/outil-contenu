@@ -12,7 +12,9 @@ const emptyProps: EditProps = {
     durationInFrames: DEFAULT_FPS,
     segments: [],
     overlays: [],
+    effects: [],
     music: null,
+    sfx: { hit: null },
   },
 };
 
