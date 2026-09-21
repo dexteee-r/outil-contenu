@@ -37,7 +37,7 @@ export type PipelineStep = (typeof PIPELINE_STEPS)[number];
 export const API_MODULES = ['tagging', 'edl', 'captions', 'image', 'judge'] as const;
 export type ApiModule = (typeof API_MODULES)[number];
 
-export const API_PROVIDERS = ['gemini', 'anthropic', 'ideogram'] as const;
+export const API_PROVIDERS = ['gemini', 'anthropic', 'kie', 'ideogram'] as const;
 export type ApiProvider = (typeof API_PROVIDERS)[number];
 
 export const FEEDBACK_TARGETS = ['video', 'thumbnail'] as const;

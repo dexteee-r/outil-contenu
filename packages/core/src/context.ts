@@ -4,6 +4,8 @@ import { accountsDir, dataPaths, type DataPaths } from './paths.js';
 import { promptsDir } from './prompts/index.js';
 import { loadPricing, type PricingTable } from './providers/pricing.js';
 import { GeminiProvider, type GeminiProviderOptions, type GeminiSdk } from './providers/gemini.js';
+import type { RetryOptions } from './providers/retry.js';
+import { KieProvider, type KieProviderOptions } from './providers/kie.js';
 import { UsageTracker } from './providers/usage.js';
 import type { Db } from './db/index.js';
 
@@ -63,14 +65,29 @@ export function createGeminiProvider(
       generateContent: (p) => ai.models.generateContent(p as GenerateContentParameters),
     },
   };
-  const withLog: GeminiProviderOptions = {
-    retry: {
-      onRetry: ({ attempt, attempts, delayMs, error }) =>
-        console.warn(
-          `  ↻ Gemini indisponible (tentative ${attempt}/${attempts}) : ${error instanceof Error ? error.message.slice(0, 120) : String(error)} — nouvel essai dans ${Math.round(delayMs / 1000)} s`,
-        ),
+  return new GeminiProvider(sdk, tracker, { retry: retryLog('Gemini'), ...options });
+}
+
+/** Client kie.ai (images), branché sur le suivi des coûts. Exige KIE_API_KEY. */
+export function createKieProvider(
+  ctx: AppContext,
+  tracker: UsageTracker,
+  options?: KieProviderOptions,
+): KieProvider {
+  if (!ctx.env.KIE_API_KEY) {
+    throw new Error('KIE_API_KEY manquante dans .env');
+  }
+  return new KieProvider(ctx.env.KIE_API_KEY, tracker, { retry: retryLog('kie.ai'), ...options });
+}
+
+/** Journalise chaque nouvelle tentative d'un fournisseur sur la console. */
+function retryLog(name: string): RetryOptions {
+  return {
+    onRetry: ({ attempt, attempts, delayMs, error }) => {
+      const reason = error instanceof Error ? error.message.slice(0, 120) : String(error);
+      console.warn(
+        `  ↻ ${name} indisponible (tentative ${attempt}/${attempts}) : ${reason} — nouvel essai dans ${Math.round(delayMs / 1000)} s`,
+      );
     },
-    ...options,
   };
-  return new GeminiProvider(sdk, tracker, withLog);
 }

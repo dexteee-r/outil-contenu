@@ -15,6 +15,8 @@ export interface ApiCallMeta {
 export interface TrackedResult<T> {
   result: T;
   usage: ApiUsage;
+  /** Coût exact fourni par le fournisseur (ex. crédits kie.ai) : prime sur la grille tarifaire */
+  costUsd?: number;
 }
 
 export interface UsageTrackerOptions {
@@ -40,8 +42,8 @@ export class UsageTracker {
   async track<T>(meta: ApiCallMeta, call: () => Promise<TrackedResult<T>>): Promise<T> {
     const started = performance.now();
     try {
-      const { result, usage } = await call();
-      this.record(meta, usage, Math.round(performance.now() - started), null);
+      const { result, usage, costUsd } = await call();
+      this.record(meta, usage, Math.round(performance.now() - started), null, costUsd);
       return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -51,8 +53,14 @@ export class UsageTracker {
   }
 
   /** Enregistre un appel déjà effectué (utile quand l'usage est connu après coup). */
-  record(meta: ApiCallMeta, usage: ApiUsage, durationMs: number, error: string | null): void {
-    const costUsd = estimateCostUsd(meta.model, usage, this.options.pricing);
+  record(
+    meta: ApiCallMeta,
+    usage: ApiUsage,
+    durationMs: number,
+    error: string | null,
+    exactCostUsd?: number,
+  ): void {
+    const costUsd = exactCostUsd ?? estimateCostUsd(meta.model, usage, this.options.pricing);
     if (costUsd === null && !this.warned.has(meta.model)) {
       this.warned.add(meta.model);
       this.options.onUnknownModel?.(meta.model);

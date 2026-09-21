@@ -119,11 +119,18 @@ describe('composeThumbnail', () => {
     expect(data[1]).toBeLessThan(80);
   }, 30_000);
 
-  it('assemble une planche contact', async () => {
+  it('assemble une planche contact, avec étiquettes optionnelles', async () => {
     const bg = await background();
     const sheet = await contactSheet([bg, bg, bg, bg], { columns: 2, cellWidth: 100 });
     const meta = await sharp(sheet).metadata();
     expect(meta.width).toBe(2 * 100 + 3 * 12);
     expect(meta.height).toBe(2 * 100 + 3 * 12);
+    const labelled = await contactSheet([bg, bg], {
+      columns: 2,
+      cellWidth: 100,
+      labels: ['a', 'b'],
+    });
+    const m2 = await sharp(labelled).metadata();
+    expect(m2.height).toBe(100 + 9 + 2 * 12); // bandeau de 9 px (9 % de la largeur)
   });
 });

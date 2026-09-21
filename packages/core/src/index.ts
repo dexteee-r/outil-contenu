@@ -22,3 +22,4 @@ export * from './thumbnails/template.js';
 export * from './thumbnails/compose.js';
 export * from './media/proxy.js';
 export * from './providers/retry.js';
+export * from './providers/kie.js';

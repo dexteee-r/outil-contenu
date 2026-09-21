@@ -163,15 +163,25 @@ export async function composeThumbnail(o: ComposeThumbnailOptions): Promise<Comp
 /** Planche contact : toutes les variantes côte à côte pour choisir d'un coup d'œil. */
 export async function contactSheet(
   images: Buffer[],
-  options: { columns?: number; cellWidth?: number } = {},
+  options: { columns?: number; cellWidth?: number; labels?: string[] } = {},
 ): Promise<Buffer> {
   const columns = options.columns ?? Math.min(3, images.length);
   const cellWidth = options.cellWidth ?? 360;
   const cells = await Promise.all(
-    images.map(async (img) => {
-      const buf = await sharp(img).resize({ width: cellWidth }).png().toBuffer();
-      const meta = await sharp(buf).metadata();
-      return { buf, height: meta.height ?? cellWidth };
+    images.map(async (img, i) => {
+      const resized = await sharp(img).resize({ width: cellWidth }).png().toBuffer();
+      const meta = await sharp(resized).metadata();
+      const label = options.labels?.[i];
+      if (!label) return { buf: resized, height: meta.height ?? cellWidth };
+      // Bandeau d'étiquette en bas de la vignette (nom du modèle, variante…)
+      const band = Math.round(cellWidth * 0.09);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cellWidth}" height="${band}"><rect width="100%" height="100%" fill="#111"/><text x="${cellWidth / 2}" y="${band * 0.68}" text-anchor="middle" font-family="Arial" font-size="${band * 0.55}" fill="#fff">${escapeXml(label)}</text></svg>`;
+      const buf = await sharp(resized)
+        .extend({ bottom: band, background: '#111' })
+        .composite([{ input: Buffer.from(svg), top: meta.height ?? cellWidth, left: 0 }])
+        .png()
+        .toBuffer();
+      return { buf, height: (meta.height ?? cellWidth) + band };
     }),
   );
   const cellHeight = Math.max(...cells.map((c) => c.height));

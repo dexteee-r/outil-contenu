@@ -14,7 +14,10 @@ export const envSchema = z.object({
   GEMINI_API_KEY: optionalString,
   ANTHROPIC_API_KEY: optionalString,
   IDEOGRAM_API_KEY: optionalString,
+  KIE_API_KEY: optionalString,
 
+  /** Fournisseur des miniatures : gemini (clé Google) ou kie (kie.ai, plusieurs modèles) */
+  IMAGE_PROVIDER: z.preprocess(emptyToUndefined, z.enum(['gemini', 'kie']).default('gemini')),
   MODEL_TAGGING: optionalString,
   MODEL_IMAGE: optionalString,
   MODEL_EDL: z.preprocess(emptyToUndefined, z.string().default('claude-sonnet-5')),
