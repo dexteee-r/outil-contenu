@@ -23,3 +23,5 @@ export * from './thumbnails/compose.js';
 export * from './media/proxy.js';
 export * from './providers/retry.js';
 export * from './providers/kie.js';
+export * from './providers/anthropic.js';
+export * from './music/index.js';

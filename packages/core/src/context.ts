@@ -6,6 +6,13 @@ import { loadPricing, type PricingTable } from './providers/pricing.js';
 import { GeminiProvider, type GeminiProviderOptions, type GeminiSdk } from './providers/gemini.js';
 import type { RetryOptions } from './providers/retry.js';
 import { KieProvider, type KieProviderOptions } from './providers/kie.js';
+import Anthropic from '@anthropic-ai/sdk';
+import {
+  AnthropicProvider,
+  type AnthropicParseParams,
+  type AnthropicProviderOptions,
+  type AnthropicSdk,
+} from './providers/anthropic.js';
 import { UsageTracker } from './providers/usage.js';
 import type { Db } from './db/index.js';
 
@@ -90,4 +97,24 @@ function retryLog(name: string): RetryOptions {
       );
     },
   };
+}
+
+/** Client Claude (EDL, légendes), branché sur le suivi des coûts. Exige ANTHROPIC_API_KEY. */
+export function createAnthropicProvider(
+  ctx: AppContext,
+  tracker: UsageTracker,
+  options?: AnthropicProviderOptions,
+): AnthropicProvider {
+  if (!ctx.env.ANTHROPIC_API_KEY) {
+    throw new Error('ANTHROPIC_API_KEY manquante dans .env');
+  }
+  const client = new Anthropic({ apiKey: ctx.env.ANTHROPIC_API_KEY });
+  // Adaptateur vers le type structurel : seule frontière où l'on caste vers le SDK
+  const sdk: AnthropicSdk = {
+    messages: {
+      parse: (p: AnthropicParseParams) =>
+        client.messages.parse(p as unknown as Parameters<typeof client.messages.parse>[0]),
+    },
+  };
+  return new AnthropicProvider(sdk, tracker, { retry: retryLog('Claude'), ...options });
 }

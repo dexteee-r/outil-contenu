@@ -17,7 +17,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "content": "pnpm cli pipeline"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

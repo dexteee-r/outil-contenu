@@ -5,6 +5,7 @@ import {
   captionSchema,
   captionsOutputSchemaFor,
   metadataSchema,
+  splitCaptionsOutput,
   THUMBNAIL_SIZES,
   type Metadata,
 } from './metadata.js';
@@ -49,8 +50,14 @@ describe('captionSchema', () => {
 describe('captionsOutputSchemaFor', () => {
   it('exige exactement les plateformes du compte', () => {
     const schema = captionsOutputSchemaFor(['tiktok', 'instagram-reels']);
-    expect(schema.safeParse({ tiktok: caption, 'instagram-reels': caption }).success).toBe(true);
-    expect(schema.safeParse({ tiktok: caption }).success).toBe(false);
+    const ok = { tiktok: caption, 'instagram-reels': caption, thumbnailTitle: 'PULL ULTRA RARE' };
+    expect(schema.safeParse(ok).success).toBe(true);
+    expect(schema.safeParse({ tiktok: caption, 'instagram-reels': caption }).success).toBe(false); // titre miniature requis
+    expect(schema.safeParse({ tiktok: caption, thumbnailTitle: 'X' }).success).toBe(false);
+    expect(splitCaptionsOutput(ok)).toEqual({
+      captions: { tiktok: caption, 'instagram-reels': caption },
+      thumbnailTitle: 'PULL ULTRA RARE',
+    });
     expect(
       schema.safeParse({ tiktok: caption, 'instagram-reels': caption, 'youtube-shorts': caption })
         .success,

@@ -16,7 +16,7 @@ export interface RetryOptions {
   sleep?: (ms: number) => Promise<void>;
 }
 
-const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
+const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504, 529]); // 529 = Anthropic « overloaded »
 
 /** Erreur passagère d'API (statut HTTP ou message Google « UNAVAILABLE » / « RESOURCE_EXHAUSTED »). */
 export function isTransientApiError(err: unknown): boolean {

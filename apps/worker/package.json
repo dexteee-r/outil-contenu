@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "@outil/core": "workspace:*",
-    "commander": "^15.0.0"
+    "@outil/pipeline": "workspace:*",
+    "commander": "^15.0.0",
+    "drizzle-orm": "^0.45.2"
   }
 }

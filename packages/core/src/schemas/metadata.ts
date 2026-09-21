@@ -39,7 +39,22 @@ export function captionsOutputSchemaFor(platforms: readonly Platform[]) {
     Platform,
     typeof captionSchema
   >;
-  return z.object(shape).strict();
+  return z
+    .object({
+      ...shape,
+      /** Texte incrusté sur la miniature : 2 à 5 mots, percutant */
+      thumbnailTitle: z.string().min(2).max(32),
+    })
+    .strict();
+}
+
+/** Sépare les légendes par plateforme du titre de miniature dans une sortie du modèle. */
+export function splitCaptionsOutput(output: Record<string, unknown>): {
+  captions: Captions;
+  thumbnailTitle: string;
+} {
+  const { thumbnailTitle, ...rest } = output;
+  return { captions: captionsSchema.parse(rest), thumbnailTitle: String(thumbnailTitle) };
 }
 
 export const metadataSchema = z

@@ -18,12 +18,28 @@ pnpm test
 pnpm -C spikes models     # liste les modèles Gemini accessibles avec la clé
 ```
 
+## Pipeline (walking skeleton, étape 3)
+
+```bash
+pnpm content run --account tcg --input "E:/contenu/raw/tcg/2026-08-05"   # un dossier de rushs → /ready
+pnpm content resume tcg-2026-08-05-80e5                                # reprend à la première étape manquante
+pnpm content list                                                      # contenus, jobs, étapes
+```
+
+Étapes : ingest → tag (Gemini) → edl (Claude, validé, corrigé jusqu'à 3 fois) → render (Remotion, musique
+de `music/` si une piste convient) → captions (Claude) → thumbnail (GPT Image 2 via kie.ai, ou image clé du
+climax en repli) → qc → deliver (`/ready/<compte>/<id>/` + `metadata.json` + `work/`) → notify (webhooks n8n
+`N8N_WEBHOOK_READY_URL` / `N8N_WEBHOOK_FAILED_URL`, ignorés s'ils sont vides). L'état vit dans `state.json`,
+chaque étape est journalisée dans `job_steps`, chaque appel API dans `api_calls`.
+(`pipeline` est un nom réservé par pnpm, d'où `pnpm content`.)
+
 ## Structure
 
 ```text
 apps/worker      orchestrateur + CLI (pnpm cli <commande>)
 packages/core    schémas Zod, base SQLite (Drizzle), config comptes, providers (Gemini), coûts, miniatures
 packages/video   composition Remotion + rendu (EDL → MP4 1080x1920)
+packages/pipeline étapes du pipeline, runner (journal, reprise), notifications
 accounts/<slug>  config d'une marque : account.yaml, brand/, prompts/, thumbnail.json
 prompts/         prompts partagés versionnés (tagging générique + par type de contenu)
 fixtures/        clips + EDL de référence (JSON) ; les rushs vidéo ne sont pas versionnés

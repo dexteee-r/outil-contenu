@@ -21,13 +21,14 @@ export type JobStatus = (typeof JOB_STATUSES)[number];
 export const STEP_STATUSES = ['running', 'done', 'failed', 'skipped'] as const;
 export type StepStatus = (typeof STEP_STATUSES)[number];
 
+/** Ordre d'exécution du pipeline (les légendes précèdent la miniature : elles fournissent son titre). */
 export const PIPELINE_STEPS = [
   'ingest',
   'tag',
   'edl',
   'render',
-  'thumbnail',
   'captions',
+  'thumbnail',
   'qc',
   'deliver',
   'notify',
