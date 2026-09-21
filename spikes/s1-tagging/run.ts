@@ -20,8 +20,10 @@ import {
   createGeminiProvider,
   createUsageTracker,
   loadAccount,
+  makeProxy,
   openDb,
   probeClips,
+  proxyPathFor,
   taggingOutputSchema,
   validateTaggingOutput,
   videoMimeType,
@@ -32,13 +34,19 @@ const { values, positionals } = parseArgs({
   options: {
     account: { type: 'string', default: 'tcg' },
     'generic-only': { type: 'boolean', default: false },
+    // Envoie un proxy 720p H.264 au lieu du rush d'origine (4K HEVC .mov = long à envoyer, inutile pour le tagging)
+    proxy: { type: 'boolean', default: true },
+    'no-proxy': { type: 'boolean', default: false },
   },
   allowPositionals: true,
 });
 if (positionals.length === 0) {
-  console.error('usage : pnpm -C spikes s1 --account tcg <rush.mp4> [...]');
+  console.error(
+    'usage : pnpm -C spikes s1 --account tcg <rush.mov|mp4> [...] [--no-proxy] [--generic-only]',
+  );
   process.exit(1);
 }
+const useProxy = values.proxy && !values['no-proxy'];
 
 const ctx = createAppContext();
 const model = ctx.env.MODEL_TAGGING;
@@ -57,14 +65,25 @@ const gemini = createGeminiProvider(ctx, tracker);
 const files = positionals.map((p) => path.resolve(p));
 const clips = await probeClips(files);
 console.log(
-  `Clips :\n${clips.map((c) => `  ${c.id} — ${c.durationSec.toFixed(1)} s, ${c.width}x${c.height}, audio ${c.hasAudio ? 'oui' : 'non'}`).join('\n')}`,
+  `Clips :\n${clips.map((c) => `  ${c.id} — ${c.durationSec.toFixed(1)} s, ${c.width}x${c.height}, audio ${c.hasAudio ? 'oui' : 'non'}, ${(fs.statSync(c.path).size / 1e6).toFixed(0)} Mo`).join('\n')}`,
 );
 
-// 1. Upload (Files API) — les fichiers restent 48 h côté Google
+const outDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'out');
+fs.mkdirSync(outDir, { recursive: true });
+
+// 1. Proxy 720p (optionnel) puis upload (Files API) — les fichiers restent 48 h côté Google
 const t0 = performance.now();
 const uploaded = await Promise.all(
   clips.map(async (clip) => {
-    const f = await gemini.uploadFile(clip.path, videoMimeType(clip.path));
+    let toSend = clip.path;
+    if (useProxy) {
+      const tp = performance.now();
+      toSend = await makeProxy({ input: clip.path, output: proxyPathFor(clip.path, outDir) });
+      console.log(
+        `  ⇣ ${clip.id} proxy 720p : ${(fs.statSync(toSend).size / 1e6).toFixed(0)} Mo en ${((performance.now() - tp) / 1000).toFixed(1)} s`,
+      );
+    }
+    const f = await gemini.uploadFile(toSend, videoMimeType(toSend));
     console.log(`  ↑ ${clip.id} envoyé (${f.name})`);
     return { clip, file: f };
   }),
@@ -107,8 +126,6 @@ console.log(
 );
 console.log(`Tokens : ${usage.inputTokens} entrée · ${usage.outputTokens} sortie`);
 
-const outDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'out');
-fs.mkdirSync(outDir, { recursive: true });
 const outFile = path.join(outDir, `${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
 fs.writeFileSync(
   outFile,

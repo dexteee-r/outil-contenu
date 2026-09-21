@@ -8,9 +8,11 @@
     "s1": "tsx s1-tagging/run.ts",
     "s2": "tsx s2-render/run.ts",
     "s3": "tsx s3-thumbnail/run.ts",
-    "s4": "tsx s4-tray/run.ts"
+    "s4": "tsx s4-tray/run.ts",
+    "models": "tsx list-models.ts"
   },
   "dependencies": {
+    "@google/genai": "^2.23.0",
     "@outil/core": "workspace:*",
     "@outil/video": "workspace:*",
     "sharp": "^0.35.4",

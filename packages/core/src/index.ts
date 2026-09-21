@@ -20,3 +20,5 @@ export * from './media/ffprobe.js';
 export * from './media/synthetic.js';
 export * from './thumbnails/template.js';
 export * from './thumbnails/compose.js';
+export * from './media/proxy.js';
+export * from './providers/retry.js';

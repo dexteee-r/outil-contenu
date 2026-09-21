@@ -159,6 +159,47 @@ describe('GeminiProvider.generateJson', () => {
   });
 });
 
+describe('GeminiProvider — nouvelles tentatives', () => {
+  const schema = z.object({ ok: z.boolean() }).strict();
+  const meta = { module: 'tagging', provider: 'gemini', model: 'gemini-test' } as const;
+
+  it('rejoue un 503 puis réussit, une seule ligne api_calls', async () => {
+    let calls = 0;
+    const sdk = fakeSdk({});
+    sdk.models.generateContent = () => {
+      calls++;
+      return calls < 3
+        ? Promise.reject(Object.assign(new Error('high demand'), { status: 503 }))
+        : Promise.resolve({ text: '{"ok":true}' });
+    };
+    const retries: number[] = [];
+    db = openDb({ file: ':memory:' });
+    const tracker = new UsageTracker(db, { pricing: PRICING, usdEurRate: 1 });
+    const p = new GeminiProvider(sdk, tracker, {
+      sleep: () => Promise.resolve(),
+      retry: { onRetry: (i) => retries.push(i.attempt) },
+    });
+    const out = await p.generateJson({ model: 'gemini-test', schema, parts: [], meta });
+    expect(out.data).toEqual({ ok: true });
+    expect(calls).toBe(3);
+    expect(retries).toEqual([1, 2]);
+    expect(db.select().from(apiCalls).all()).toHaveLength(1);
+  });
+
+  it('ne rejoue pas une réponse hors schéma', async () => {
+    let calls = 0;
+    const sdk = fakeSdk({});
+    sdk.models.generateContent = () => {
+      calls++;
+      return Promise.resolve({ text: '{"ok":"non"}' });
+    };
+    await expect(
+      provider(sdk).generateJson({ model: 'gemini-test', schema, parts: [], meta }),
+    ).rejects.toThrow(GeminiOutputError);
+    expect(calls).toBe(1);
+  });
+});
+
 describe('GeminiProvider.generateImages', () => {
   it('décode les images inline et compte les images dans l’usage', async () => {
     const png = Buffer.from('fake-png');

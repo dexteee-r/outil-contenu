@@ -264,6 +264,9 @@ importers:
 
   spikes:
     dependencies:
+      '@google/genai':
+        specifier: ^2.23.0
+        version: 2.23.0(supports-color@8.1.1)
       '@outil/core':
         specifier: workspace:*
         version: link:../packages/core

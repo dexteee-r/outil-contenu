@@ -63,5 +63,14 @@ export function createGeminiProvider(
       generateContent: (p) => ai.models.generateContent(p as GenerateContentParameters),
     },
   };
-  return new GeminiProvider(sdk, tracker, options);
+  const withLog: GeminiProviderOptions = {
+    retry: {
+      onRetry: ({ attempt, attempts, delayMs, error }) =>
+        console.warn(
+          `  ↻ Gemini indisponible (tentative ${attempt}/${attempts}) : ${error instanceof Error ? error.message.slice(0, 120) : String(error)} — nouvel essai dans ${Math.round(delayMs / 1000)} s`,
+        ),
+    },
+    ...options,
+  };
+  return new GeminiProvider(sdk, tracker, withLog);
 }

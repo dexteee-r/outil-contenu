@@ -58,13 +58,38 @@ modèle » pour comparer avec le texte posé par code. Décision Gemini vs Ideog
 Pièges rencontrés : Zod 4 — `.default({})` ne re-parse pas la valeur (les sous-défauts ne
 s'appliquent pas), utiliser `.prefault({})`.
 
-## S1 — Tagging Gemini — en attente
+## S1 — Tagging Gemini — 2026-09-21
 
-Script prêt (`pnpm -C spikes s1 --account tcg <rush.mp4>`) : ffprobe → upload Files API (attente de
-l'état ACTIVE) → prompt générique + prompt `tcg-opening` → JSON contraint par `taggingOutputSchema` →
-contrôle de cohérence (ids, bornes) → coût dans `api_calls`. Option `--generic-only` pour comparer.
+**Résultat : validé sur de vrais rushs.** Trois `.mov` iPhone (ouverture d'un booster One Piece
+OP-10 : 3,1 s + 9,0 s + 22,2 s, 1080x1920) → proxies 720p (≤ 3 s chacun) → Files API (11 s) →
+`gemini-3.7-flash` avec prompt générique + `tcg-opening`, JSON contraint par le schéma, 0 incohérence.
 
-Attend : `GEMINI_API_KEY` + `MODEL_TAGGING` dans `.env` (ID exact à vérifier), un vrai rush
-d'ouverture TCG. Le modèle Flash n'est pas dans la grille tarifaire tant que son tarif n'est pas
-confirmé : ajouter son entrée dans `pricing.json` à la racine (`{ "<id>": { "kind": "tokens",
-"inputPerMTok": …, "outputPerMTok": … } }`).
+Ce que le modèle a trouvé :
+
+- **Climax `part-3` 16,5 → 21,5 s, score 0,90 : « Révélation de la carte Vergo (OP10-004) »** —
+  vérifié image par image : à 16,5 s la carte précédente glisse et Vergo apparaît, à 21 s elle est
+  brandie face caméra. Précision ≤ 0,5 s, meilleure que la cible de ±1 s.
+- Noms de cartes lus correctement (Franky, Jora, Kamusari, Vergo…), numéro de carte inclus.
+- Hooks pertinents : découpe du booster aux ciseaux (`part-2` 2,5 → 6,0 s), arrivée du booster sur
+  la table (`part-1`). Le début instable de `part-2` est bien tagué `inutilisable`.
+- Pas de highlight `reaction` : il n'y a pas de visage dans ces rushs, c'est correct.
+
+Mesures : 4 062 tokens en entrée, 1 161 en sortie (coût négligeable, même payant) ; **génération
+148 s** — long, à mettre sur le compte de la surcharge du moment (le premier essai avait reçu un 503
+« high demand », `gemini-3.8-flash` a échoué 5 fois de suite sur 5 le même après-midi).
+
+Conséquences intégrées :
+
+- **Nouvelles tentatives avec attente exponentielle** (`providers/retry.ts`, 5 essais, 2 s → 30 s)
+  sur 429/503/5xx et erreurs réseau, autour de l'upload et de la génération. Les erreurs de contrat
+  (JSON hors schéma) ne sont jamais rejouées.
+- **Proxy 720p** avant envoi (`media/proxy.ts`) : inutile d'envoyer du 4K HEVC, Gemini échantillonne
+  la vidéo en basse résolution. Le rendu final lit toujours le rush d'origine.
+- **Rotation des `.mov` de téléphone** lue par ffprobe (`side_data_list` / `tags.rotate`), sinon les
+  dimensions seraient inversées.
+
+Décisions : `gemini-3.7-flash` reste le modèle de tagging (disponible, précis) ; le prompt générique +
+spécifique suffit, pas de passe frame par frame nécessaire. Tarif à renseigner dans `pricing.json`
+(`{ "gemini-3.7-flash": { "kind": "tokens", "inputPerMTok": …, "outputPerMTok": … } }`) pour que
+le coût apparaisse dans `api_calls`. Le palier gratuit expose à ces 503 en heure de pointe : la file
+d'attente de l'étape 6 absorbera ça ; à trancher après quelques semaines d'usage.

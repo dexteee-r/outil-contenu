@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { z } from 'zod';
 import { toJsonSchema } from '../schemas/json-schema.js';
+import { retry, type RetryOptions } from './retry.js';
 import type { ApiCallMeta, UsageTracker } from './usage.js';
 
 /**
@@ -99,12 +100,15 @@ export interface GeminiProviderOptions {
   /** Délai max d'attente de l'état ACTIVE (défaut 10 min) */
   uploadTimeoutMs?: number;
   sleep?: (ms: number) => Promise<void>;
+  /** Nouvelles tentatives sur 429/503/5xx (défaut : 5 tentatives, 2 s → 30 s) */
+  retry?: Pick<RetryOptions, 'attempts' | 'baseDelayMs' | 'maxDelayMs' | 'onRetry'>;
 }
 
 export class GeminiProvider {
   private readonly pollIntervalMs: number;
   private readonly uploadTimeoutMs: number;
   private readonly sleep: (ms: number) => Promise<void>;
+  private readonly retryOptions: RetryOptions;
 
   constructor(
     private readonly sdk: GeminiSdk,
@@ -114,6 +118,12 @@ export class GeminiProvider {
     this.pollIntervalMs = options.pollIntervalMs ?? 3000;
     this.uploadTimeoutMs = options.uploadTimeoutMs ?? 10 * 60 * 1000;
     this.sleep = options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+    this.retryOptions = { ...options.retry, sleep: this.sleep };
+  }
+
+  /** Appel SDK avec nouvelles tentatives sur erreur passagère (surcharge, quota, réseau). */
+  private generate(params: GeminiGenerateParams): Promise<GeminiResponse> {
+    return retry(() => this.sdk.models.generateContent(params), this.retryOptions);
   }
 
   /** Envoie un fichier via la Files API et attend qu'il soit exploitable (état ACTIVE). */
@@ -121,10 +131,10 @@ export class GeminiProvider {
     file: string,
     mimeType: string,
   ): Promise<{ uri: string; mimeType: string; name: string }> {
-    let f = await this.sdk.files.upload({
-      file,
-      config: { mimeType, displayName: path.basename(file) },
-    });
+    let f = await retry(
+      () => this.sdk.files.upload({ file, config: { mimeType, displayName: path.basename(file) } }),
+      this.retryOptions,
+    );
     const deadline = Date.now() + this.uploadTimeoutMs;
     while (f.state === 'PROCESSING') {
       if (Date.now() > deadline)
@@ -155,7 +165,7 @@ export class GeminiProvider {
         responseJsonSchema: toJsonSchema(params.schema),
       };
       if (params.temperature !== undefined) config.temperature = params.temperature;
-      const res = await this.sdk.models.generateContent({
+      const res = await this.generate({
         model: params.model,
         contents: { role: 'user', parts: params.parts },
         config,
@@ -191,7 +201,7 @@ export class GeminiProvider {
       const imageConfig: { aspectRatio?: string; imageSize?: string } = {};
       if (params.aspectRatio) imageConfig.aspectRatio = params.aspectRatio;
       if (params.imageSize) imageConfig.imageSize = params.imageSize;
-      const res = await this.sdk.models.generateContent({
+      const res = await this.generate({
         model: params.model,
         contents: { role: 'user', parts: [{ text: params.prompt }] },
         config: { responseModalities: ['IMAGE', 'TEXT'], imageConfig },

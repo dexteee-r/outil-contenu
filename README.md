@@ -1,7 +1,10 @@
 # Outil IA de création & publication de contenu
 
 Pipeline personnel : rushs bruts → vidéo verticale montée + miniatures + légendes, par compte/marque.
-Le cahier des charges et le plan de développement sont dans `../docs (hors repo)/`.
+Le cahier des charges et le plan de développement sont hors repo, dans
+`Desktop\PERSO - Outil IA de création & publication de contenu\docs (hors repo)\` (un raccourci vers ce repo est à côté).
+Les données (rushs, rendus, base SQLite) vivent dans `DATA_ROOT` (`.env`), par exemple `E:\contenu` :
+`raw\<compte>\<date>\` pour déposer les rushs, `ready\<compte>\<id>\` pour récupérer les livrables.
 
 ## Démarrage
 
@@ -12,15 +15,19 @@ pnpm check                # vérifie Node, ffmpeg, binaires natifs, .env, compte
 pnpm db:migrate           # crée <DATA_ROOT>/outil.sqlite
 pnpm config:check tcg     # valide accounts/tcg/account.yaml
 pnpm test
+pnpm -C spikes models     # liste les modèles Gemini accessibles avec la clé
 ```
 
 ## Structure
 
 ```text
 apps/worker      orchestrateur + CLI (pnpm cli <commande>)
-packages/core    schémas Zod, base SQLite (Drizzle), config comptes, suivi des coûts API
-accounts/<slug>  config d'une marque : account.yaml, brand/, prompts/
+packages/core    schémas Zod, base SQLite (Drizzle), config comptes, providers (Gemini), coûts, miniatures
+packages/video   composition Remotion + rendu (EDL → MP4 1080x1920)
+accounts/<slug>  config d'une marque : account.yaml, brand/, prompts/, thumbnail.json
+prompts/         prompts partagés versionnés (tagging générique + par type de contenu)
 fixtures/        clips + EDL de référence (JSON) ; les rushs vidéo ne sont pas versionnés
+spikes/          scripts de dérisquage de l'étape 2 (compte-rendu dans docs/spikes.md)
 packages/core/src/doctor.ts   contrôles de prérequis (pnpm check)
 ```
 
