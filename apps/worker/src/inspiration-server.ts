@@ -167,5 +167,6 @@ export async function startInspirationServer(
   });
   const address = server.address();
   const port = typeof address === 'object' && address ? address.port : options.port;
-  return { url: `http://localhost:${port}`, server };
+  // 127.0.0.1 et non « localhost » : certains navigateurs tentent d'abord ::1 (IPv6), où rien n'écoute
+  return { url: `http://127.0.0.1:${port}`, server };
 }
