@@ -18,7 +18,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "content": "pnpm cli pipeline"
+    "content": "pnpm cli pipeline",
+    "inspiration": "pnpm cli inspiration"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

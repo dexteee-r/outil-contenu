@@ -33,3 +33,7 @@ Thumbs.db
 sfx/*
 !sfx/sfx.json
 !sfx/README.md
+
+# Miniatures d inspiration : oeuvres d autres créateurs, jamais dans le dépôt public
+accounts/*/inspiration/*
+!accounts/*/inspiration/README.md
