@@ -44,17 +44,36 @@ export function captionsOutputSchemaFor(platforms: readonly Platform[]) {
       ...shape,
       /** Texte incrusté sur la miniature : 2 à 5 mots, percutant */
       thumbnailTitle: z.string().min(2).max(32),
+      /** Sujet à mettre en héros sur la miniature (produit, carte, objet) */
+      thumbnailSubject: z
+        .object({
+          clipId: z.string().min(1),
+          atSec: z.number().nonnegative(),
+          what: z.string().min(2).max(60),
+        })
+        .strict(),
     })
     .strict();
 }
 
 /** Sépare les légendes par plateforme du titre de miniature dans une sortie du modèle. */
+export interface ThumbnailSubject {
+  clipId: string;
+  atSec: number;
+  what: string;
+}
+
 export function splitCaptionsOutput(output: Record<string, unknown>): {
   captions: Captions;
   thumbnailTitle: string;
+  thumbnailSubject: ThumbnailSubject;
 } {
-  const { thumbnailTitle, ...rest } = output;
-  return { captions: captionsSchema.parse(rest), thumbnailTitle: String(thumbnailTitle) };
+  const { thumbnailTitle, thumbnailSubject, ...rest } = output;
+  return {
+    captions: captionsSchema.parse(rest),
+    thumbnailTitle: String(thumbnailTitle),
+    thumbnailSubject: thumbnailSubject as ThumbnailSubject,
+  };
 }
 
 export const metadataSchema = z

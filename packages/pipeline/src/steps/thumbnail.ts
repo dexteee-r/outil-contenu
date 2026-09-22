@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   composeCardThumbnail,
+  composePosterThumbnail,
   composeScreenThumbnail,
   composeThumbnail,
   cropByFraming,
@@ -97,11 +98,22 @@ export async function thumbnail(
       ? fs.readFileSync(account.files.logo)
       : undefined;
 
-  // 1. Image clé réelle : instant le plus net du moment clé, cadrée comme dans la vidéo
+  // 1. Sujet : celui choisi par Claude à l'étape captions (produit, carte, visage…), sinon le climax
+  const subject = state.thumbnailSubject;
   const moment = pickKeyMoment(tagging);
-  const clip = moment ? clips.find((c) => c.id === moment.clipId) : clips[0];
+  const clip =
+    (subject ? clips.find((c) => c.id === subject.clipId) : undefined) ??
+    (moment ? clips.find((c) => c.id === moment.clipId) : undefined) ??
+    clips[0];
   if (!clip) throw new Error('thumbnail : aucun clip');
-  const candidates = moment ? keyFrameCandidates(moment, clip.durationSec) : [clip.durationSec / 2];
+  const candidates = subject
+    ? [subject.atSec, subject.atSec - 0.25, subject.atSec + 0.25, subject.atSec + 0.5].filter(
+        (t) => t >= 0 && t <= clip.durationSec - 0.05,
+      )
+    : moment
+      ? keyFrameCandidates(moment, clip.durationSec)
+      : [clip.durationSec / 2];
+  if (subject) p.log(`thumbnail : sujet choisi — ${subject.what}`);
   const best = await pickSharpestFrame(clip.path, candidates, path.join(state.workDir, 'frames'));
   const framing = framingAt(state.edl, clip.id, best.atSec);
   const keyFrame = await cropByFraming(best.path, framing);
@@ -113,6 +125,51 @@ export async function thumbnail(
   );
 
   state.thumbnails = [];
+  if (template.style === 'poster') {
+    // Détourage du sujet (kie.ai) : c'est lui qui donne le rendu « miniature moderne »
+    let hero = keyFrame;
+    const kieProvider = p.kie();
+    if (kieProvider) {
+      try {
+        const cut = await kieProvider.removeBackground(keyFrame, {
+          module: 'image',
+          provider: 'kie',
+          model: 'recraft/remove-background',
+          account: state.account,
+          contentId: state.contentId,
+        });
+        hero = cut.image;
+        fs.writeFileSync(path.join(state.workDir, 'cutout.png'), hero);
+        p.log(`thumbnail : sujet détouré (${cut.costUsd.toFixed(3)} $)`);
+      } catch (err) {
+        p.log(
+          `thumbnail : détourage indisponible (${err instanceof Error ? err.message : String(err)}) — sujet non détouré`,
+        );
+      }
+    }
+    for (const format of THUMBNAIL_FORMATS) {
+      const composed = await composePosterThumbnail({
+        subject: hero,
+        format,
+        template,
+        brand: account.config.brand,
+        title,
+        logo,
+      });
+      const file = path.join(state.workDir, `thumb-${format}-v1.png`);
+      fs.writeFileSync(file, composed.png);
+      state.thumbnails.push({
+        path: file,
+        format,
+        variant: 1,
+        selected: true,
+        background: 'frame',
+      });
+    }
+    p.log(`thumbnail : style poster, titre « ${title} », CTA « ${template.cta ?? '—'} »`);
+    return;
+  }
+
   if (template.style === 'screen' || template.style === 'card') {
     for (const format of THUMBNAIL_FORMATS) {
       const composed =

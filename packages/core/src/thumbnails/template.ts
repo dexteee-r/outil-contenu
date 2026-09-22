@@ -45,17 +45,18 @@ const colorRef = z.union([
 ]);
 export type ColorRef = z.infer<typeof colorRef>;
 
-export const THUMBNAIL_STYLES = ['screen', 'card', 'photo'] as const;
+export const THUMBNAIL_STYLES = ['poster', 'screen', 'card', 'photo'] as const;
 export type ThumbnailStyle = (typeof THUMBNAIL_STYLES)[number];
 
 export const thumbnailTemplateSchema = z
   .object({
     /**
-     * screen : capture réelle de la vidéo plein cadre, traitement miniature YouTube (défaut).
+     * poster : sujet détouré en héros sur fond de marque + 3 éléments de décor (défaut).
+     * screen : capture réelle plein cadre, traitement miniature YouTube.
      * card : image clé en vignette inclinée sur fond de marque. photo : visuel plein cadre IA ou
      * image clé + voile. Aucun style n'exige d'image IA sauf photo avec fournisseur configuré.
      */
-    style: z.enum(THUMBNAIL_STYLES).default('screen'),
+    style: z.enum(THUMBNAIL_STYLES).default('poster'),
     /** Pastille d'appel à l'action du style card (null = aucune) */
     cta: z.string().min(1).max(24).nullable().default('REGARDE'),
     formats: z

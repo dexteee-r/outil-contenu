@@ -9,6 +9,8 @@ import type { ApiCallMeta, UsageTracker } from './usage.js';
  */
 
 export const KIE_BASE_URL = 'https://api.kie.ai';
+/** Service de fichiers de kie.ai (upload base64 → URL publique, requise par les modèles image-to-image) */
+export const KIE_UPLOAD_URL = 'https://kieai.redpandaai.co/api/file-base64-upload';
 /** 200 crédits = 1 $ (grille kie.ai, 2026-09) */
 export const KIE_USD_PER_CREDIT = 0.005;
 
@@ -101,6 +103,7 @@ export type FetchLike = (
 
 export interface KieProviderOptions {
   baseUrl?: string;
+  uploadUrl?: string;
   fetch?: FetchLike;
   sleep?: (ms: number) => Promise<void>;
   /** Intervalle d'interrogation de la tâche (défaut 3 s) */
@@ -131,6 +134,7 @@ export function parseResultUrls(resultJson: string | undefined): string[] {
 
 export class KieProvider {
   private readonly baseUrl: string;
+  private readonly uploadUrl: string;
   private readonly fetchImpl: FetchLike;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly pollIntervalMs: number;
@@ -143,6 +147,7 @@ export class KieProvider {
     options: KieProviderOptions = {},
   ) {
     this.baseUrl = options.baseUrl ?? KIE_BASE_URL;
+    this.uploadUrl = options.uploadUrl ?? KIE_UPLOAD_URL;
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     this.sleep = options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
     this.pollIntervalMs = options.pollIntervalMs ?? 3000;
@@ -165,6 +170,62 @@ export class KieProvider {
       }
       return envelope.data;
     }, this.retryOptions);
+  }
+
+  /**
+   * Envoie une image et renvoie son URL publique (les modèles qui prennent une image en entrée
+   * n'acceptent que des URLs). L'image reste accessible par URL : à n'utiliser que pour ce qui
+   * part de toute façon au fournisseur.
+   */
+  async uploadImage(png: Buffer, fileName: string): Promise<string> {
+    const data = await retry(async () => {
+      const res = await this.fetchImpl(this.uploadUrl, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          base64Data: `data:image/png;base64,${png.toString('base64')}`,
+          uploadPath: 'images',
+          fileName,
+        }),
+      });
+      // La réponse expose downloadUrl (et non fileUrl comme le laisse croire la doc)
+      const envelope = (await res.json()) as KieEnvelope<{
+        downloadUrl?: string;
+        fileUrl?: string;
+      }>;
+      const code = envelope.code ?? res.status;
+      const url = envelope.data?.downloadUrl ?? envelope.data?.fileUrl;
+      if (code !== 200 || !url) {
+        throw new KieError(`upload kie.ai ${code} : ${envelope.msg ?? 'sans message'}`, code);
+      }
+      return url;
+    }, this.retryOptions);
+    return data;
+  }
+
+  /** Détourage du sujet (fond transparent) par recraft/remove-background, à partir d'une image locale. */
+  async removeBackground(png: Buffer, meta: ApiCallMeta): Promise<KieImageResult> {
+    return this.tracker.track(meta, async () => {
+      const url = await this.uploadImage(png, `frame-${Date.now()}.png`);
+      const taskId = await this.createTask('recraft/remove-background', { image: url });
+      const task = await this.waitForTask(taskId);
+      const out = parseResultUrls(task.resultJson)[0];
+      if (!out) throw new KieError('détourage réussi mais sans URL de résultat', 500);
+      const res = await retry(() => this.fetchImpl(out), this.retryOptions);
+      if (!res.ok)
+        throw new KieError(`téléchargement du détourage : HTTP ${res.status}`, res.status);
+      const creditsConsumed = task.creditsConsumed ?? 0;
+      const costUsd = creditsConsumed * KIE_USD_PER_CREDIT;
+      const result: KieImageResult = {
+        image: Buffer.from(await res.arrayBuffer()),
+        mimeType: res.headers.get('content-type') ?? 'image/png',
+        url: out,
+        creditsConsumed,
+        costUsd,
+        generationMs: task.costTime,
+      };
+      return { result, usage: { images: 1 }, costUsd };
+    });
   }
 
   /** Crédits restants sur le compte. */

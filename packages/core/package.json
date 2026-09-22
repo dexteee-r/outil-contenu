@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",
     "@google/genai": "^2.23.0",
+    "@imgly/background-removal-node": "^1.4.5",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2",
     "sharp": "^0.35.4",

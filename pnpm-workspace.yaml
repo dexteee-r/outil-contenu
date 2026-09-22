@@ -10,3 +10,8 @@ allowBuilds:
   esbuild: true
   protobufjs: true # postinstall bénin (protobufjs)
   '@google/genai': false # son script prepare ne sert qu'au dev du SDK
+  onnxruntime-node: true # télécharge le binaire ONNX (détourage local des miniatures)
+
+overrides:
+  # onnxruntime-node 1.17 (dépendance de @imgly/background-removal-node) plante sur Node 24
+  onnxruntime-node: ^1.30.0

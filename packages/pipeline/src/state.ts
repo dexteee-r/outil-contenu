@@ -55,6 +55,10 @@ export const pipelineStateSchema = z
       .optional(),
     captions: captionsSchema.optional(),
     thumbnailTitle: z.string().optional(),
+    thumbnailSubject: z
+      .object({ clipId: z.string(), atSec: z.number(), what: z.string() })
+      .strict()
+      .optional(),
     thumbnails: z
       .array(
         z

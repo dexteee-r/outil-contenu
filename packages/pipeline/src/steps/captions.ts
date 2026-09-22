@@ -58,9 +58,10 @@ export async function captions(
   const split = splitCaptionsOutput(data);
   state.captions = split.captions;
   state.thumbnailTitle = split.thumbnailTitle;
+  state.thumbnailSubject = split.thumbnailSubject;
   state.models = { ...state.models, captions: model };
   const first = platforms[0] ? split.captions[platforms[0]] : undefined;
   p.log(
-    `captions : ${platforms.length} plateforme(s) · titre « ${first?.title ?? '?'} » · miniature « ${split.thumbnailTitle} »`,
+    `captions : ${platforms.length} plateforme(s) · titre « ${first?.title ?? '?'} » · miniature « ${split.thumbnailTitle} » sur ${split.thumbnailSubject.what} (${split.thumbnailSubject.clipId} @ ${split.thumbnailSubject.atSec.toFixed(1)} s)`,
   );
 }

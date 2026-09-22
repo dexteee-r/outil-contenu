@@ -13,4 +13,7 @@ Réponds uniquement en JSON conforme au schéma imposé, en français sauf indic
 - Les hashtags sont donnés dans `hashtags` (avec ou sans `#`), pas dans `description`.
 - Ne révèle pas le climax dans le titre si le montage repose sur la surprise ; suggère-le.
 - Pas d'emoji dans `title` ; emojis sobres autorisés dans `description`.
-- `thumbnailTitle` : le texte incrusté sur la miniature, à côté de l'image réelle du moment clé — 2 à 4 mots, en majuscules, une émotion ou un nom (« C'EST VERGO », « PULL DE FOU », « ELLE EST SORTIE »), jamais une description de l'image (pas de « gros plan », « carte », « vidéo »), sans ponctuation finale, ≤ 24 caractères.
+- `thumbnailTitle` : le texte incrusté sur la miniature, à côté du sujet — 2 à 4 mots, en majuscules, une émotion ou un nom (« C'EST VERGO », « PULL DE FOU », « ELLE EST SORTIE »), jamais une description de l'image (pas de « gros plan », « carte », « vidéo »), sans ponctuation finale, ≤ 24 caractères.
+- `thumbnailSubject` : l'objet à découper et à mettre en héros sur la miniature — celui qui donne envie de cliquer, pas forcément le climax. Pour une ouverture, c'est le **produit fermé et reconnaissable** (le booster, la boîte) présenté à la caméra ; pour une réaction, le visage ; pour une balade, le paysage le plus fort.
+  - `clipId` et `atSec` : l'instant du dérushage où cet objet est **le plus net, le plus grand et entier dans le cadre** (regarde les scènes, pas seulement les moments forts) ;
+  - `what` : ce qu'on y voit, en quelques mots (« booster One Piece OP-10 fermé, tenu en main »).

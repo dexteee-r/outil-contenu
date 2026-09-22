@@ -50,13 +50,19 @@ describe('captionSchema', () => {
 describe('captionsOutputSchemaFor', () => {
   it('exige exactement les plateformes du compte', () => {
     const schema = captionsOutputSchemaFor(['tiktok', 'instagram-reels']);
-    const ok = { tiktok: caption, 'instagram-reels': caption, thumbnailTitle: 'PULL ULTRA RARE' };
+    const ok = {
+      tiktok: caption,
+      'instagram-reels': caption,
+      thumbnailTitle: 'PULL ULTRA RARE',
+      thumbnailSubject: { clipId: 'rush-01', atSec: 2.5, what: 'booster One Piece fermé' },
+    };
     expect(schema.safeParse(ok).success).toBe(true);
     expect(schema.safeParse({ tiktok: caption, 'instagram-reels': caption }).success).toBe(false); // titre miniature requis
-    expect(schema.safeParse({ tiktok: caption, thumbnailTitle: 'X' }).success).toBe(false);
+    expect(schema.safeParse({ ...ok, thumbnailSubject: undefined }).success).toBe(false); // sujet requis
     expect(splitCaptionsOutput(ok)).toEqual({
       captions: { tiktok: caption, 'instagram-reels': caption },
       thumbnailTitle: 'PULL ULTRA RARE',
+      thumbnailSubject: { clipId: 'rush-01', atSec: 2.5, what: 'booster One Piece fermé' },
     });
     expect(
       schema.safeParse({ tiktok: caption, 'instagram-reels': caption, 'youtube-shorts': caption })
