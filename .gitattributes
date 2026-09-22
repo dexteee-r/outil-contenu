@@ -11,3 +11,4 @@
 *.mp4 binary
 *.mp3 binary
 *.sqlite binary
+*.cmd text eol=crlf

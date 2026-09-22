@@ -31,3 +31,4 @@ export * from './images/frames.js';
 export * from './thumbnails/screen.js';
 export * from './thumbnails/poster.js';
 export * from './inspiration/youtube.js';
+export * from './inspiration/library.js';

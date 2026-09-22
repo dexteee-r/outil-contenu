@@ -10,7 +10,10 @@ import {
   runDoctor,
 } from '@outil/core';
 import { createContext } from './context.js';
-import { registerInspirationCommands } from './inspiration-commands.js';
+import {
+  registerInspirationCommands,
+  registerInspirationWebCommand,
+} from './inspiration-commands.js';
 import { registerPipelineCommands } from './pipeline-commands.js';
 
 const program = new Command()
@@ -89,6 +92,7 @@ function describeBudget(b: { mode: string; monthlyLimitEur?: number }): string {
 
 registerPipelineCommands(program);
 registerInspirationCommands(program);
+registerInspirationWebCommand(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(err instanceof Error ? err.message : err);

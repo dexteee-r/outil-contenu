@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Miniatures d'inspiration</title>
+    <style>
+      :root {
+        --bg: #f6f6f8;
+        --panel: #ffffff;
+        --text: #16161d;
+        --muted: #6b6b78;
+        --line: #e3e3ea;
+        --accent: #f5b800;
+        --accent-text: #16161d;
+        --ok: #1f9d55;
+        --err: #d64545;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.05);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f0f14;
+          --panel: #18181f;
+          --text: #ececf1;
+          --muted: #9a9aa8;
+          --line: #2a2a34;
+          --accent: #ffcc00;
+          --accent-text: #0f0f14;
+          --ok: #3ecf7a;
+          --err: #ff6b6b;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 20px;
+        padding: 14px 24px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+      h1 {
+        margin: 0;
+        font-size: 18px;
+      }
+      .folder {
+        color: var(--muted);
+        font-size: 13px;
+        word-break: break-all;
+      }
+      label.account {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      select,
+      textarea,
+      button {
+        font: inherit;
+        color: inherit;
+      }
+      select {
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--bg);
+      }
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+        display: grid;
+        gap: 20px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      @media (max-width: 800px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+        main {
+          padding: 16px;
+        }
+        header {
+          padding: 12px 16px;
+        }
+      }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: var(--shadow);
+      }
+      h2 {
+        margin: 0 0 4px;
+        font-size: 16px;
+      }
+      .hint {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        resize: vertical;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--bg);
+      }
+      textarea:focus,
+      select:focus,
+      button:focus-visible,
+      .drop:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 10px;
+      }
+      button.primary {
+        padding: 9px 18px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--accent);
+        color: var(--accent-text);
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.primary:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+      .drop {
+        display: grid;
+        place-items: center;
+        min-height: 120px;
+        padding: 16px;
+        border: 2px dashed var(--line);
+        border-radius: 10px;
+        text-align: center;
+        color: var(--muted);
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+      .drop.over {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 10%, transparent);
+      }
+      .drop strong {
+        color: var(--text);
+      }
+      ul.results {
+        margin: 12px 0 0;
+        padding: 0;
+        list-style: none;
+        font-size: 13px;
+      }
+      ul.results li {
+        padding: 4px 0;
+        border-top: 1px solid var(--line);
+      }
+      .ok {
+        color: var(--ok);
+      }
+      .err {
+        color: var(--err);
+      }
+      .gallery-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 14px;
+        align-items: start;
+      }
+      figure {
+        position: relative;
+        margin: 0;
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--bg);
+        border: 1px solid var(--line);
+      }
+      figure img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      figcaption {
+        padding: 6px 8px;
+        font-size: 12px;
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      figcaption a {
+        color: inherit;
+      }
+      .badge {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        padding: 1px 7px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .del {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        font-size: 16px;
+        line-height: 28px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      figure:hover .del,
+      .del:focus-visible {
+        opacity: 1;
+      }
+      @media (hover: none) {
+        .del {
+          opacity: 1;
+        }
+      }
+      .empty {
+        padding: 28px;
+        text-align: center;
+        color: var(--muted);
+      }
+      #toast {
+        position: fixed;
+        left: 50%;
+        bottom: 20px;
+        transform: translateX(-50%);
+        padding: 10px 16px;
+        border-radius: 10px;
+        background: var(--text);
+        color: var(--bg);
+        font-size: 14px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+      }
+      #toast.show {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Miniatures d'inspiration</h1>
+      <span class="folder" id="folder"></span>
+      <label class="account"
+        >Compte
+        <select id="account" aria-label="Compte"></select
+      ></label>
+    </header>
+
+    <main>
+      <div class="row">
+        <section>
+          <h2>Liens YouTube</h2>
+          <p class="hint">
+            Colle un ou plusieurs liens (vidéos, Shorts, youtu.be), un par ligne. Pour un Short, la
+            miniature verticale est récupérée en plus du 16:9.
+          </p>
+          <textarea
+            id="links"
+            placeholder="https://www.youtube.com/shorts/…&#10;https://youtu.be/…"
+            aria-label="Liens YouTube"
+          ></textarea>
+          <div class="actions">
+            <button class="primary" id="fetch">Récupérer les miniatures</button>
+            <span class="hint" id="fetch-status" style="margin: 0"></span>
+          </div>
+          <ul class="results" id="results"></ul>
+        </section>
+
+        <section>
+          <h2>Captures TikTok, Instagram…</h2>
+          <p class="hint">
+            Glisse des images ici, clique pour les choisir, ou colle une capture d'écran avec
+            <kbd>Ctrl</kbd>+<kbd>V</kbd> n'importe où sur la page (Win+Maj+S pour capturer).
+          </p>
+          <div class="drop" id="drop" tabindex="0" role="button" aria-label="Ajouter des images">
+            <div><strong>Dépose tes images ici</strong><br />PNG, JPG ou WebP</div>
+          </div>
+          <input type="file" id="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
+          <ul class="results" id="upload-results"></ul>
+        </section>
+      </div>
+
+      <section>
+        <div class="gallery-head">
+          <h2>Bibliothèque <span class="hint" id="count"></span></h2>
+        </div>
+        <div class="gallery" id="gallery"></div>
+      </section>
+    </main>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const accountSel = $('account');
+      let account = '';
+      try {
+        account = localStorage.getItem('inspiration.account') || '';
+      } catch {}
+
+      function toast(msg) {
+        const t = $('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(toast.timer);
+        toast.timer = setTimeout(() => t.classList.remove('show'), 2800);
+      }
+      const q = (params) => new URLSearchParams({ account, ...params }).toString();
+      const esc = (s) =>
+        String(s ?? '').replace(
+          /[&<>"']/g,
+          (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+        );
+
+      async function api(path, init) {
+        const res = await fetch(path, init);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || `erreur ${res.status}`);
+        return body;
+      }
+
+      async function loadAccounts() {
+        const { accounts } = await api('/api/accounts');
+        accountSel.innerHTML = accounts.map((a) => `<option>${esc(a)}</option>`).join('');
+        if (!accounts.includes(account)) account = accounts[0] || '';
+        accountSel.value = account;
+      }
+
+      async function loadGallery() {
+        const { dir, images } = await api(`/api/images?${q({})}`);
+        $('folder').textContent = dir;
+        $('count').textContent = images.length ? `— ${images.length} image(s)` : '';
+        const g = $('gallery');
+        if (!images.length) {
+          g.innerHTML =
+            '<div class="empty">Aucune miniature pour l’instant. Colle des liens ou dépose des captures.</div>';
+          g.style.display = 'block';
+          return;
+        }
+        g.style.display = '';
+        g.innerHTML = images
+          .map((img) => {
+            const vertical = /-9x16\./.test(img.name);
+            const label = img.source
+              ? `<a href="${esc(img.source.url)}" target="_blank" rel="noopener">${esc(img.source.channel || '')} — ${esc(img.source.title || '')}</a>`
+              : esc(img.name);
+            return `<figure>
+              <img src="/image?${q({ name: img.name })}" alt="${esc(img.source?.title || img.name)}" loading="lazy" />
+              ${img.source ? `<span class="badge">${vertical ? '9:16' : '16:9'}</span>` : ''}
+              <button class="del" data-name="${esc(img.name)}" aria-label="Supprimer ${esc(img.name)}" title="Supprimer">×</button>
+              <figcaption title="${esc(img.source?.title || img.name)}">${label}</figcaption>
+            </figure>`;
+          })
+          .join('');
+      }
+
+      $('fetch').addEventListener('click', async () => {
+        const links = $('links').value.split(/\s+/).filter(Boolean);
+        if (!links.length) return toast('Colle au moins un lien.');
+        const btn = $('fetch');
+        btn.disabled = true;
+        $('fetch-status').textContent = `Récupération de ${links.length} lien(s)…`;
+        try {
+          const { results } = await api(`/api/youtube?${q({})}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ links }),
+          });
+          $('results').innerHTML = results
+            .map((r) =>
+              r.ok
+                ? `<li><span class="ok">✔</span> ${esc(r.channel || '')} — ${esc(r.title || r.link)} <span class="hint">(${r.files.length} fichier(s))</span></li>`
+                : `<li><span class="err">✖</span> ${esc(r.link)} — ${esc(r.error)}</li>`,
+            )
+            .join('');
+          const ok = results.filter((r) => r.ok).length;
+          toast(`${ok}/${results.length} récupérée(s)`);
+          if (ok === results.length) $('links').value = '';
+          await loadGallery();
+        } catch (e) {
+          toast(e.message);
+        } finally {
+          btn.disabled = false;
+          $('fetch-status').textContent = '';
+        }
+      });
+
+      async function uploadFiles(files) {
+        const list = [...files].filter((f) => f.type.startsWith('image/'));
+        if (!list.length) return toast('Aucune image reconnue.');
+        const out = [];
+        for (const f of list) {
+          const name =
+            f.name && f.name !== 'image.png'
+              ? f.name
+              : `capture-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
+          try {
+            const { name: saved } = await api(`/api/upload?${q({ name })}`, {
+              method: 'POST',
+              body: f,
+            });
+            out.push(`<li><span class="ok">✔</span> ${esc(saved)}</li>`);
+          } catch (e) {
+            out.push(`<li><span class="err">✖</span> ${esc(name)} — ${esc(e.message)}</li>`);
+          }
+        }
+        $('upload-results').innerHTML = out.join('');
+        toast(`${list.length} image(s) traitée(s)`);
+        await loadGallery();
+      }
+
+      const drop = $('drop');
+      drop.addEventListener('click', () => $('file').click());
+      drop.addEventListener(
+        'keydown',
+        (e) => (e.key === 'Enter' || e.key === ' ') && $('file').click(),
+      );
+      $('file').addEventListener('change', (e) =>
+        uploadFiles(e.target.files).then(() => (e.target.value = '')),
+      );
+      ['dragenter', 'dragover'].forEach((t) =>
+        drop.addEventListener(t, (e) => {
+          e.preventDefault();
+          drop.classList.add('over');
+        }),
+      );
+      ['dragleave', 'drop'].forEach((t) =>
+        drop.addEventListener(t, () => drop.classList.remove('over')),
+      );
+      drop.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadFiles(e.dataTransfer.files);
+      });
+      document.addEventListener('paste', (e) => {
+        const files = [...(e.clipboardData?.files || [])];
+        if (files.length && document.activeElement !== $('links')) {
+          e.preventDefault();
+          uploadFiles(files);
+        }
+      });
+
+      $('gallery').addEventListener('click', async (e) => {
+        const btn = e.target.closest('.del');
+        if (!btn) return;
+        if (!confirm(`Supprimer ${btn.dataset.name} ?`)) return;
+        try {
+          await api(`/api/images?${q({ name: btn.dataset.name })}`, { method: 'DELETE' });
+          toast('Supprimée');
+          await loadGallery();
+        } catch (err) {
+          toast(err.message);
+        }
+      });
+
+      accountSel.addEventListener('change', () => {
+        account = accountSel.value;
+        try {
+          localStorage.setItem('inspiration.account', account);
+        } catch {}
+        loadGallery();
+      });
+
+      loadAccounts()
+        .then(loadGallery)
+        .catch((e) => toast(e.message));
+    </script>
+  </body>
+</html>
