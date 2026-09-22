@@ -39,3 +39,26 @@ Résultat : EDL 24,4 s, hook flouté à 20 px, zoom 1,3–2,0, hit à 22,0 s, un
 - SFX : `sfx/sfx.json` vide → son de substitution synthétique.
 - Webhooks n8n (`N8N_WEBHOOK_READY_URL`, `N8N_WEBHOOK_FAILED_URL`).
 - Logo `accounts/tcg/brand/logo.png`.
+
+## v4 — 2026-09-22 —  (miniature « poster »)
+
+Retour de Markus sur v3 : « je vois bien une miniature du booster op10 en position principale avec
+2 ou 3 éléments de décor, style miniature moderne, simple ».
+
+Changements :
+
+- **Style  par défaut** : sujet **détouré** en héros (ombre portée, légère inclinaison) sur
+  un fond de marque, avec exactement trois éléments de décor — rayons très discrets (8 branches,
+  opacité 0,07), halo derrière le sujet, quatre étincelles — gros titre à contour et pastille CTA.
+  Mise en page propre à chaque format (vertical : sujet haut, texte dessous ; horizontal : sujet à
+  droite, texte à gauche).
+- **Détourage** :  via kie.ai (upload base64 → URL temporaire → tâche →
+  téléchargement). **1 crédit = 0,005 *, ~10 s. Le détourage local (@imgly/background-removal-node,
+  ONNX) fait planter Node 24 en natif (exit -1073741819) : abandonné.
+- **Sujet choisi par Claude** ( dans la sortie des légendes) : clip, instant et
+  description de l'objet qui donne envie de cliquer — pas forcément le climax. Le prompt demande le
+  produit fermé et reconnaissable pour une ouverture.
+- Ombre portée : aplat noir masqué par l'alpha du sujet () ; la première version affichait
+  la silhouette en blanc.
+
+Coût de la miniature : **0,005 * (contre 0,03 $ en génération IA), et c'est le vrai objet.

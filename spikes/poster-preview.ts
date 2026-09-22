@@ -17,6 +17,7 @@ import {
 
 const args = process.argv.slice(2);
 const noCutout = args.includes('--no-cutout');
+const reuse = args.includes('--reuse-cutout');
 const [input, title = "C'est Vergo"] = args.filter((a) => !a.startsWith('--'));
 if (!input) throw new Error('usage : pnpm -C spikes poster <image.png> "Titre" [--no-cutout]');
 
@@ -32,7 +33,10 @@ let subject: Buffer = frame;
 const ctx = createAppContext();
 const db = openDb({ file: ctx.paths.db });
 try {
-  if (!noCutout) {
+  if (reuse) {
+    subject = fs.readFileSync(path.join(outDir, 'cutout.png'));
+    console.log('détourage réutilisé (cache local)');
+  } else if (!noCutout) {
     const kie = createKieProvider(ctx, createUsageTracker(ctx, db));
     const t0 = performance.now();
     const r = await kie.removeBackground(frame, {

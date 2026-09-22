@@ -27,7 +27,7 @@ export interface PosterLayout {
 export const POSTER_LAYOUTS: Record<ThumbnailFormat, PosterLayout> = {
   // Vertical : sujet dans le tiers haut/milieu, texte dessous, hors des zones d'UI TikTok/Reels
   '9x16': {
-    hero: { cx: 0.5, cy: 0.42, height: 0.56, tiltDeg: -5 },
+    hero: { cx: 0.5, cy: 0.4, height: 0.64, tiltDeg: -5 },
     title: { x: 0.06, y: 0.72, w: 0.88, maxLines: 2, align: 'center', fontSize: 0.082 },
     ctaHeight: 0.05,
   },
@@ -176,11 +176,12 @@ export async function prepareHero(
     .ensureAlpha()
     .png()
     .toBuffer();
-  // Ombre : la silhouette du sujet en noir, floutée
+  // Ombre : un aplat noir masqué par l'alpha du sujet (`dest-in` garde le noir là où le sujet est opaque)
   const pad = Math.round(h * 0.08);
-  const silhouette = await sharp(resized)
-    .extractChannel('alpha')
-    .toColourspace('b-w')
+  const silhouette = await sharp({
+    create: { width: w, height: h, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0.7 } },
+  })
+    .composite([{ input: resized, blend: 'dest-in' }])
     .png()
     .toBuffer();
   const shadow = await sharp({
@@ -191,10 +192,8 @@ export async function prepareHero(
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     },
   })
-    .composite([
-      { input: silhouette, left: pad, top: pad + Math.round(h * 0.02), blend: 'dest-over' },
-    ])
-    .blur(pad / 2)
+    .composite([{ input: silhouette, left: pad, top: pad + Math.round(h * 0.025) }])
+    .blur(pad / 2.5)
     .png()
     .toBuffer();
   const withShadow = await sharp(shadow)
