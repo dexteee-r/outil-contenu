@@ -3,6 +3,7 @@ export * from './ids.js';
 export * from './state.js';
 export * from './notify.js';
 export * from './runner.js';
+export * from './rethumb.js';
 export * from './steps/edl.js';
 export * from './steps/captions.js';
 export * from './steps/thumbnail.js';

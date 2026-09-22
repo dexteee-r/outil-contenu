@@ -36,8 +36,11 @@ export interface FailedPayload {
 export function buildReadyPayload(state: PipelineState): ReadyPayload {
   if (!state.deliveredDir || !state.render) throw new Error('notify : contenu non livré');
   const platforms = state.captions ? Object.values(state.captions) : [];
+  const thumbs = state.thumbnails ?? [];
   const preview =
-    (state.thumbnails ?? []).find((t) => t.format === '16x9') ?? state.thumbnails?.[0];
+    thumbs.find((t) => t.format === '16x9' && t.selected) ??
+    thumbs.find((t) => t.format === '16x9') ??
+    thumbs[0];
   return {
     event: 'ready',
     contentId: state.contentId,

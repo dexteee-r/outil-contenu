@@ -65,3 +65,43 @@ Changements :
   la silhouette en blanc.
 
 Coût de la miniature : **0,005 $** (contre 0,03 $ en génération IA), et c'est le vrai objet.
+
+## v5 — 2026-09-22 — `tcg-2026-08-05-b4ff` (miniature « duo », tirée de l'inspiration)
+
+Markus a rempli `accounts/tcg/inspiration/` avec 17 miniatures TCG populaires (Valouzz, La Flèche,
+DavidLafarge, JirayaTV, Hctuan…). Ce qu'elles ont en commun :
+
+- le **produit réel en très grand** (booster, display, carte), net et saturé, qui déborde souvent du
+  cadre ; souvent **produit + carte hit** côte à côte, la carte entourée d'une **lueur** ;
+- un **fond coloré dans la couleur du produit** (décor flouté ou « énergie »), jamais neutre ;
+- un **texte très court** (1 à 3 mots, un chiffre ou une question : « -2000€ », « J'arrête ? »,
+  « 0,0002% ») dans une **étiquette pleine**, ou pas de texte du tout ;
+- une **flèche** ou un « ? » pour créer la curiosité ; **aucun bouton « regarde »** ;
+- un visage expressif sur 15 sur 17 : Markus filme ses mains, donc c'est le seul point non repris
+  (piste : une petite banque de photos réaction détourées).
+
+Changements :
+
+- **Style `duo` par défaut** (`packages/core/src/thumbnails/duo.ts`) : produit détouré en très grand
+  (liseré blanc « sticker », ombre), carte hit détourée à côté avec une lueur de sa propre couleur,
+  fond = dégradé radial + faisceaux + le produit lui-même agrandi et flouté, dans la **teinte
+  dominante du produit** ; étiquette jaune de marque (texte mesuré au rendu, police réduite si
+  besoin) ; flèche courbe vers la carte. **Variante 2 teaser** : carte floutée + gros « ? »
+  (`selected: false`). Mise en page 16:9 (produit à gauche, carte à droite, coin bas-droit libre pour
+  la durée YouTube) et 9:16 (éléments dans le 3:4 central que rognent les grilles de profil).
+- **Teinte dominante** : image réduite à 24 px (les détails se fondent dans leur surface), seuil de
+  saturation bas (le violet OP-10 sort terne à la caméra), **peau et gris chauds exclus** (règle YCbCr).
+  Sans ces règles le fond sortait jaune (logo doré) puis orange (gris chauds).
+- **Bords coupés** : si le détourage touche un bord de l'image (la main qui entre dans le champ), ce
+  côté sort aussi du canevas au lieu d'apparaître comme une coupe nette.
+- **Pas de recadrage avant détourage** : le zoom du montage (×1,3) coupait le booster posé sur la
+  table ; les styles détourés partent maintenant de l'image entière.
+- **Claude choisit deux sujets** : `thumbnailSubject` (le produit fermé) et `thumbnailHit` (la
+  meilleure carte face visible, ou `null`), et un `thumbnailTitle` de 1 à 3 mots, ≤ 16 caractères,
+  qui ne nomme jamais la carte. Sur ce contenu : booster OP-10 à 2,0 s, Vergo à 21,0 s, « QUEL HIT ? ».
+- **`pnpm content thumbnail <id>`** : regénère les miniatures d'un contenu livré sans refaire montage
+  ni rendu (rushs relus depuis `/raw`, `metadata.json` mis à jour) — 0,01 $ pour deux détourages.
+- Sharp : un masque brut à 1 canal ressort en sRGB (3 canaux) après `blur()` — d'où des rayures dans
+  la première version ; `linear()` s'applique avant `ensureAlpha()` dans un même pipeline.
+
+Coût de la miniature : **0,01 $** (deux détourages), 4 images (2 formats × 2 variantes).

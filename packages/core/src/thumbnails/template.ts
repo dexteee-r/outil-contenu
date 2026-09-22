@@ -45,20 +45,38 @@ const colorRef = z.union([
 ]);
 export type ColorRef = z.infer<typeof colorRef>;
 
-export const THUMBNAIL_STYLES = ['poster', 'screen', 'card', 'photo'] as const;
+export const THUMBNAIL_STYLES = ['duo', 'poster', 'screen', 'card', 'photo'] as const;
 export type ThumbnailStyle = (typeof THUMBNAIL_STYLES)[number];
 
 export const thumbnailTemplateSchema = z
   .object({
     /**
-     * poster : sujet détouré en héros sur fond de marque + 3 éléments de décor (défaut).
+     * duo : produit détouré en très grand + carte hit lumineuse, fond couleur du produit,
+     * étiquette courte et flèche (défaut, tiré des miniatures d'inspiration).
+     * poster : sujet détouré en héros sur fond de marque + 3 éléments de décor.
      * screen : capture réelle plein cadre, traitement miniature YouTube.
      * card : image clé en vignette inclinée sur fond de marque. photo : visuel plein cadre IA ou
      * image clé + voile. Aucun style n'exige d'image IA sauf photo avec fournisseur configuré.
      */
-    style: z.enum(THUMBNAIL_STYLES).default('poster'),
-    /** Pastille d'appel à l'action du style card (null = aucune) */
+    style: z.enum(THUMBNAIL_STYLES).default('duo'),
+    /** Pastille d'appel à l'action des styles poster et card (null = aucune) */
     cta: z.string().min(1).max(24).nullable().default('REGARDE'),
+    duo: z
+      .object({
+        /** Flèche vers la carte hit */
+        arrow: z.boolean().default(true),
+        /** Deuxième variante : carte floutée marquée d'un « ? » (teaser) */
+        teaseVariant: z.boolean().default(true),
+        label: z
+          .object({
+            fill: colorRef.default('brand.primary'),
+            text: colorRef.default('brand.background'),
+          })
+          .strict()
+          .prefault({}),
+      })
+      .strict()
+      .prefault({}),
     formats: z
       .object({
         '9x16': formatTemplateSchema.prefault({

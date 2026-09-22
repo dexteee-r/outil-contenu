@@ -59,6 +59,11 @@ export const pipelineStateSchema = z
       .object({ clipId: z.string(), atSec: z.number(), what: z.string() })
       .strict()
       .optional(),
+    thumbnailHit: z
+      .object({ clipId: z.string(), atSec: z.number(), what: z.string() })
+      .strict()
+      .nullable()
+      .optional(),
     thumbnails: z
       .array(
         z

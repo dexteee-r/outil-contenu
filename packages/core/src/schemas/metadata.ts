@@ -30,6 +30,16 @@ export type Caption = z.infer<typeof captionSchema>;
 export const captionsSchema = z.partialRecord(z.enum(PLATFORMS), captionSchema);
 export type Captions = z.infer<typeof captionsSchema>;
 
+/** Un instant du dérushage à découper pour la miniature. */
+export const thumbnailPickSchema = z
+  .object({
+    clipId: z.string().min(1),
+    atSec: z.number().nonnegative(),
+    what: z.string().min(2).max(60),
+  })
+  .strict();
+export type ThumbnailSubject = z.infer<typeof thumbnailPickSchema>;
+
 /**
  * Sortie attendue du modèle de légendes pour un compte donné : une entrée requise par plateforme
  * ciblée, rien d'autre (schéma construit à la volée depuis `account.platforms`).
@@ -42,37 +52,29 @@ export function captionsOutputSchemaFor(platforms: readonly Platform[]) {
   return z
     .object({
       ...shape,
-      /** Texte incrusté sur la miniature : 2 à 5 mots, percutant */
+      /** Texte de l'étiquette de la miniature : 1 à 3 mots, percutant */
       thumbnailTitle: z.string().min(2).max(32),
-      /** Sujet à mettre en héros sur la miniature (produit, carte, objet) */
-      thumbnailSubject: z
-        .object({
-          clipId: z.string().min(1),
-          atSec: z.number().nonnegative(),
-          what: z.string().min(2).max(60),
-        })
-        .strict(),
+      /** Sujet principal de la miniature : le produit (booster, display), détouré en très grand */
+      thumbnailSubject: thumbnailPickSchema,
+      /** Second sujet : la carte hit à son plus net, ou null s'il n'y en a pas */
+      thumbnailHit: thumbnailPickSchema.nullable(),
     })
     .strict();
 }
 
-/** Sépare les légendes par plateforme du titre de miniature dans une sortie du modèle. */
-export interface ThumbnailSubject {
-  clipId: string;
-  atSec: number;
-  what: string;
-}
-
+/** Sépare les légendes par plateforme des choix de miniature dans une sortie du modèle. */
 export function splitCaptionsOutput(output: Record<string, unknown>): {
   captions: Captions;
   thumbnailTitle: string;
   thumbnailSubject: ThumbnailSubject;
+  thumbnailHit: ThumbnailSubject | null;
 } {
-  const { thumbnailTitle, thumbnailSubject, ...rest } = output;
+  const { thumbnailTitle, thumbnailSubject, thumbnailHit, ...rest } = output;
   return {
     captions: captionsSchema.parse(rest),
     thumbnailTitle: String(thumbnailTitle),
     thumbnailSubject: thumbnailSubject as ThumbnailSubject,
+    thumbnailHit: (thumbnailHit ?? null) as ThumbnailSubject | null,
   };
 }
 

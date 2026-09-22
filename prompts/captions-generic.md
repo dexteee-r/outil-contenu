@@ -13,7 +13,13 @@ Réponds uniquement en JSON conforme au schéma imposé, en français sauf indic
 - Les hashtags sont donnés dans `hashtags` (avec ou sans `#`), pas dans `description`.
 - Ne révèle pas le climax dans le titre si le montage repose sur la surprise ; suggère-le.
 - Pas d'emoji dans `title` ; emojis sobres autorisés dans `description`.
-- `thumbnailTitle` : le texte incrusté sur la miniature, à côté du sujet — 2 à 4 mots, en majuscules, une émotion ou un nom (« C'EST VERGO », « PULL DE FOU », « ELLE EST SORTIE »), jamais une description de l'image (pas de « gros plan », « carte », « vidéo »), sans ponctuation finale, ≤ 24 caractères.
-- `thumbnailSubject` : l'objet à découper et à mettre en héros sur la miniature — celui qui donne envie de cliquer, pas forcément le climax. Pour une ouverture, c'est le **produit fermé et reconnaissable** (le booster, la boîte) présenté à la caméra ; pour une réaction, le visage ; pour une balade, le paysage le plus fort.
+
+### Miniature
+
+La miniature suit la grammaire des miniatures TCG qui marchent : le produit réel en très grand, la carte hit à côté (ou floutée avec un « ? » dans une variante teaser), un texte très court dans une étiquette, une flèche vers la carte. Tu choisis le texte et les deux instants à découper.
+
+- `thumbnailTitle` : le texte de l'étiquette — **1 à 3 mots, ≤ 16 caractères**, en majuscules. Une question, un chiffre, une émotion ou un enjeu qui donne envie de cliquer (« QUEL HIT ? », « BOOSTER JAP », « 1 SEUL PACK », « ENFIN ! », « JACKPOT ? »). Jamais une description de l'image (pas de « gros plan », « carte », « vidéo »), jamais le nom de la carte hit (la miniature ne doit pas gâcher la surprise). `?` et `!` autorisés.
+- `thumbnailSubject` : le **produit** à mettre en très grand — pour une ouverture, le produit **fermé et reconnaissable** (booster, display, boîte) ; pour une réaction, le visage ; pour une balade, le paysage le plus fort.
   - `clipId` et `atSec` : l'instant du dérushage où cet objet est **le plus net, le plus grand et entier dans le cadre** (regarde les scènes, pas seulement les moments forts) ;
-  - `what` : ce qu'on y voit, en quelques mots (« booster One Piece OP-10 fermé, tenu en main »).
+  - `what` : ce qu'on y voit, en quelques mots (« booster One Piece OP-10 fermé, sur la table »).
+- `thumbnailHit` : la **meilleure carte tirée**, à l'instant où elle est la plus nette, face visible, présentée à la caméra (en général la fin du climax) — `clipId`, `atSec`, `what` comme ci-dessus. `null` s'il n'y a pas de carte ou d'objet révélé (balade, vlog…), ou s'il s'agit du même instant que `thumbnailSubject`.

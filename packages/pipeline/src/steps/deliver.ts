@@ -56,7 +56,13 @@ export function deliver(p: PipelineContext, state: PipelineState): void {
     fs.copyFileSync(t.path, path.join(readyDir, name));
     return { path: name, format: t.format, variant: t.variant, selected: t.selected };
   });
-  for (const work of ['tagging.json', 'edl.json', 'key-frame.png', 'thumb-background.png']) {
+  for (const work of [
+    'tagging.json',
+    'edl.json',
+    'key-frame.png',
+    'hit-frame.png',
+    'thumb-background.png',
+  ]) {
     const src = path.join(state.workDir, work);
     if (fs.existsSync(src)) fs.copyFileSync(src, path.join(readyDir, 'work', work));
   }

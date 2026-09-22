@@ -231,6 +231,55 @@ describe('thumbnail step (repli image clé, ffmpeg réel)', () => {
     expect(fs.existsSync(path.join(state.workDir, 'key-frame.png'))).toBe(true);
   }, 60_000);
 
+  it('style duo : produit + carte choisis par Claude → 2 variantes × 2 formats, la v1 retenue', async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'outil-thumb-'));
+    writeTestAccount(dir, 'tcg');
+    const ctx = makeTestContext(dir, { IMAGE_PROVIDER: 'gemini' }); // pas de kie → sujets non détourés
+    db = openDb({ file: ':memory:' });
+    const p = createPipelineContext(ctx, db, () => {});
+    const clip = await makeSyntheticClip({
+      out: path.join(dir, 'rush-01.mp4'),
+      durationSec: 3,
+      width: 540,
+      height: 960,
+      fps: 24,
+    });
+    const base: PipelineState = {
+      version: 1,
+      contentId: 'tcg-x',
+      account: 'tcg',
+      sourceDir: dir,
+      workDir: path.join(dir, 'work'),
+      createdAt: new Date().toISOString(),
+      completedSteps: ['ingest', 'tag', 'edl', 'render', 'captions'],
+      sourceFiles: ['rush-01.mp4'],
+      clips: [
+        { id: 'rush-01', path: clip, durationSec: 3, width: 540, height: 960, hasAudio: true },
+      ],
+      tagging,
+      thumbnailTitle: 'QUEL HIT ?',
+      thumbnailSubject: { clipId: 'rush-01', atSec: 0.5, what: 'booster fermé' },
+    };
+    fs.mkdirSync(base.workDir, { recursive: true });
+
+    const withHit: PipelineState = {
+      ...base,
+      thumbnailHit: { clipId: 'rush-01', atSec: 2.4, what: 'carte hit' },
+    };
+    await thumbnail(p, withHit, loadAccount('tcg', ctx.accountsDir));
+    expect(withHit.thumbnails!.map((t) => `${t.format}-v${t.variant}-${t.selected}`)).toEqual([
+      '9x16-v1-true',
+      '16x9-v1-true',
+      '9x16-v2-false',
+      '16x9-v2-false',
+    ]);
+    expect(fs.existsSync(path.join(base.workDir, 'hit-frame.png'))).toBe(true);
+
+    const noHit: PipelineState = { ...base, thumbnailHit: null };
+    await thumbnail(p, noHit, loadAccount('tcg', ctx.accountsDir));
+    expect(noHit.thumbnails).toHaveLength(2); // produit seul, pas de variante teaser
+  }, 60_000);
+
   it('candidats d’image clé et cadrage du segment couvrant', () => {
     const moment = {
       clipId: 'rush-01',

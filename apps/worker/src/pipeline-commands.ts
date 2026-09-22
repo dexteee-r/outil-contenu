@@ -1,13 +1,18 @@
 import type { Command } from 'commander';
 import { desc } from 'drizzle-orm';
 import { closeDb, contents, jobs, jobSteps, openDb } from '@outil/core';
-import { createPipelineContext, resumeContent, runContent } from '@outil/pipeline';
+import {
+  createPipelineContext,
+  regenerateThumbnails,
+  resumeContent,
+  runContent,
+} from '@outil/pipeline';
 import { createContext } from './context.js';
 
 const stamp = () => new Date().toISOString().slice(11, 19);
 const log = (m: string) => console.log(`[${stamp()}] ${m}`);
 
-/** `pipeline run|resume|list` : le walking skeleton en ligne de commande (étape 3). */
+/** `pipeline run|resume|thumbnail|list` : le walking skeleton en ligne de commande (étape 3). */
 export function registerPipelineCommands(program: Command): void {
   const pipeline = program.command('pipeline').description('Exécution du pipeline sur un contenu');
 
@@ -43,6 +48,24 @@ export function registerPipelineCommands(program: Command): void {
       try {
         const state = await resumeContent(createPipelineContext(ctx, db, log), contentId);
         console.log(`\nLivré dans : ${state.deliveredDir}`);
+      } catch (err) {
+        console.error(`\nÉchec : ${err instanceof Error ? err.message : String(err)}`);
+        process.exitCode = 1;
+      } finally {
+        closeDb(db);
+      }
+    });
+
+  pipeline
+    .command('thumbnail')
+    .description('Regénère les miniatures d’un contenu livré (sans refaire montage ni rendu)')
+    .argument('<contentId>', 'identifiant du contenu, ex. tcg-2026-08-05-a3f9')
+    .action(async (contentId: string) => {
+      const ctx = createContext();
+      const db = openDb({ file: ctx.paths.db });
+      try {
+        const state = await regenerateThumbnails(createPipelineContext(ctx, db, log), contentId);
+        console.log(`\nMiniatures dans : ${state.deliveredDir}`);
       } catch (err) {
         console.error(`\nÉchec : ${err instanceof Error ? err.message : String(err)}`);
         process.exitCode = 1;

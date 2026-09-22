@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   composeCardThumbnail,
+  composeDuoThumbnail,
   composePosterThumbnail,
   composeScreenThumbnail,
   composeThumbnail,
@@ -76,10 +77,75 @@ export function buildBackgroundPrompt(
   ].join(' ');
 }
 
+/** Instants candidats autour d'un instant choisi par Claude (le plus net sera retenu). */
+export function pickCandidates(atSec: number, clipDurationSec: number): number[] {
+  return [atSec, atSec - 0.25, atSec + 0.25, atSec + 0.5].filter(
+    (t) => t >= 0 && t <= clipDurationSec - 0.05,
+  );
+}
+
+type Clip = NonNullable<PipelineState['clips']>[number];
+
 /**
- * Miniatures : une variante × deux formats.
- * - style `card` (défaut) : l'image réelle du moment clé — la plus nette parmi plusieurs instants,
- *   recadrée avec le zoom du montage — en vignette sur fond de marque, titre et appel à l'action.
+ * L'image la plus nette parmi les candidats ; écrite en `<name>-frame.png`. Recadrée comme dans
+ * le montage si `crop` — pas avant un détourage : le zoom couperait le sujet (le booster à plat
+ * sur la table perdait un bord), et le détourage l'isole de toute façon.
+ */
+async function subjectFrame(
+  p: PipelineContext,
+  state: PipelineState,
+  clip: Clip,
+  candidates: number[],
+  name: string,
+  crop: boolean,
+): Promise<Buffer> {
+  const dir = path.join(state.workDir, `frames-${name}`);
+  const best = await pickSharpestFrame(clip.path, candidates, dir);
+  const framing = crop
+    ? framingAt(state.edl, clip.id, best.atSec)
+    : { zoom: 1, focusX: 0.5, focusY: 0.5 };
+  const frame = await cropByFraming(best.path, framing);
+  fs.writeFileSync(path.join(state.workDir, `${name}-frame.png`), frame);
+  fs.rmSync(dir, { recursive: true, force: true });
+  p.log(
+    `thumbnail : image ${name} ${clip.id} @ ${best.atSec.toFixed(1)} s (netteté ${best.sharpness.toFixed(1)}, zoom ${framing.zoom})`,
+  );
+  return frame;
+}
+
+/** Détourage (kie.ai) ; en repli l'image telle quelle. Écrit en `cutout-<name>.png`. */
+async function cutout(
+  p: PipelineContext,
+  state: PipelineState,
+  image: Buffer,
+  name: string,
+): Promise<Buffer> {
+  const kie = p.kie();
+  if (!kie) return image;
+  try {
+    const cut = await kie.removeBackground(image, {
+      module: 'image',
+      provider: 'kie',
+      model: 'recraft/remove-background',
+      account: state.account,
+      contentId: state.contentId,
+    });
+    fs.writeFileSync(path.join(state.workDir, `cutout-${name}.png`), cut.image);
+    p.log(`thumbnail : ${name} détouré (${cut.costUsd.toFixed(3)} $)`);
+    return cut.image;
+  } catch (err) {
+    p.log(
+      `thumbnail : détourage ${name} indisponible (${err instanceof Error ? err.message : String(err)}) — sujet non détouré`,
+    );
+    return image;
+  }
+}
+
+/**
+ * Miniatures : deux formats, une ou deux variantes.
+ * - style `duo` (défaut) : produit + carte hit détourés (variante 2 : carte floutée avec « ? »).
+ * - style `poster` : sujet détouré en héros sur fond de marque.
+ * - styles `screen` / `card` : l'image réelle du moment clé, traitée ou en vignette.
  * - style `photo` : visuel plein cadre généré (kie.ai) ou image clé en repli, voile + titre.
  */
 export async function thumbnail(
@@ -107,46 +173,78 @@ export async function thumbnail(
     clips[0];
   if (!clip) throw new Error('thumbnail : aucun clip');
   const candidates = subject
-    ? [subject.atSec, subject.atSec - 0.25, subject.atSec + 0.25, subject.atSec + 0.5].filter(
-        (t) => t >= 0 && t <= clip.durationSec - 0.05,
-      )
+    ? pickCandidates(subject.atSec, clip.durationSec)
     : moment
       ? keyFrameCandidates(moment, clip.durationSec)
       : [clip.durationSec / 2];
   if (subject) p.log(`thumbnail : sujet choisi — ${subject.what}`);
-  const best = await pickSharpestFrame(clip.path, candidates, path.join(state.workDir, 'frames'));
-  const framing = framingAt(state.edl, clip.id, best.atSec);
-  const keyFrame = await cropByFraming(best.path, framing);
-  const framePath = path.join(state.workDir, 'key-frame.png');
-  fs.writeFileSync(framePath, keyFrame);
-  fs.rmSync(path.join(state.workDir, 'frames'), { recursive: true, force: true });
-  p.log(
-    `thumbnail : image clé ${clip.id} @ ${best.atSec.toFixed(1)} s (netteté ${best.sharpness.toFixed(1)}, zoom ${framing.zoom})`,
-  );
+  const cutoutStyle = template.style === 'duo' || template.style === 'poster';
+  const keyFrame = await subjectFrame(p, state, clip, candidates, 'key', !cutoutStyle);
 
   state.thumbnails = [];
-  if (template.style === 'poster') {
-    // Détourage du sujet (kie.ai) : c'est lui qui donne le rendu « miniature moderne »
-    let hero = keyFrame;
-    const kieProvider = p.kie();
-    if (kieProvider) {
-      try {
-        const cut = await kieProvider.removeBackground(keyFrame, {
-          module: 'image',
-          provider: 'kie',
-          model: 'recraft/remove-background',
-          account: state.account,
-          contentId: state.contentId,
-        });
-        hero = cut.image;
-        fs.writeFileSync(path.join(state.workDir, 'cutout.png'), hero);
-        p.log(`thumbnail : sujet détouré (${cut.costUsd.toFixed(3)} $)`);
-      } catch (err) {
-        p.log(
-          `thumbnail : détourage indisponible (${err instanceof Error ? err.message : String(err)}) — sujet non détouré`,
+  if (template.style === 'duo') {
+    // 2. Carte hit : choisie par Claude ; null = pas de carte ; absente (ancien état) = le climax
+    let hitFrame: Buffer | null = null;
+    const hit = state.thumbnailHit;
+    const hitClip = hit ? clips.find((c) => c.id === hit.clipId) : undefined;
+    if (hit && hitClip) {
+      p.log(`thumbnail : carte choisie — ${hit.what}`);
+      hitFrame = await subjectFrame(
+        p,
+        state,
+        hitClip,
+        pickCandidates(hit.atSec, hitClip.durationSec),
+        'hit',
+        false,
+      );
+    } else if (hit === undefined && subject && moment) {
+      const momentClip = clips.find((c) => c.id === moment.clipId);
+      if (momentClip) {
+        hitFrame = await subjectFrame(
+          p,
+          state,
+          momentClip,
+          keyFrameCandidates(moment, momentClip.durationSec),
+          'hit',
+          false,
         );
       }
     }
+    const hero = await cutout(p, state, keyFrame, 'key');
+    const secondary = hitFrame ? await cutout(p, state, hitFrame, 'hit') : null;
+    const variants = secondary && template.duo.teaseVariant ? [false, true] : [false];
+    for (const [i, tease] of variants.entries()) {
+      for (const format of THUMBNAIL_FORMATS) {
+        const composed = await composeDuoThumbnail({
+          hero,
+          secondary,
+          format,
+          template,
+          brand: account.config.brand,
+          title,
+          tease,
+          logo,
+        });
+        const file = path.join(state.workDir, `thumb-${format}-v${i + 1}.png`);
+        fs.writeFileSync(file, composed.png);
+        state.thumbnails.push({
+          path: file,
+          format,
+          variant: i + 1,
+          selected: i === 0,
+          background: 'frame',
+        });
+      }
+    }
+    p.log(
+      `thumbnail : style duo, étiquette « ${title} », ${secondary ? 'produit + carte' : 'produit seul'}, ${variants.length} variante(s)`,
+    );
+    return;
+  }
+
+  if (template.style === 'poster') {
+    // Détourage du sujet (kie.ai) : c'est lui qui donne le rendu « miniature moderne »
+    const hero = await cutout(p, state, keyFrame, 'key');
     for (const format of THUMBNAIL_FORMATS) {
       const composed = await composePosterThumbnail({
         subject: hero,
