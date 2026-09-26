@@ -35,7 +35,9 @@ export function clip(text: string, max: number): string {
 
 export function readyMessage(payload: ReadyPayload, preview: Buffer | null): DiscordMessage {
   const fields = Object.entries(payload.captions ?? {}).map(([platform, c]) => {
-    const tags = c.hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ');
+    const list = c.hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`));
+    // Hashtags déjà écrits dans la description : pas en double
+    const tags = list.every((t) => c.description.includes(t)) ? '' : list.join(' ');
     return {
       name: PLATFORM_LABELS[platform] ?? platform,
       value: clip([`**${c.title}**`, c.description, tags].filter(Boolean).join('\n'), 1024),

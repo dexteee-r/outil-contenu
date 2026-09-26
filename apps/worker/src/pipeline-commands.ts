@@ -11,6 +11,7 @@ import {
   runWatcher,
   startFeedback,
 } from '@outil/pipeline';
+import { installStopHandlers } from './app-command.js';
 import { createContext } from './context.js';
 
 const stamp = () => new Date().toISOString().slice(11, 19);
@@ -115,23 +116,7 @@ export function registerPipelineCommands(program: Command): void {
       const ctx = createContext();
       const db = openDb({ file: ctx.paths.db });
       const controller = new AbortController();
-      let forceTimer: NodeJS.Timeout | undefined;
-      const stop = (signal: string) => {
-        if (controller.signal.aborted) {
-          log(`${signal} : arrêt immédiat (le contenu en cours sera repris au prochain lancement)`);
-          process.exit(130);
-        }
-        log(
-          `${signal} : arrêt propre — l'étape en cours se termine (Ctrl+C encore pour arrêter tout de suite)`,
-        );
-        controller.abort();
-        // Garde-fou : au-delà de 5 min, on sort quand même ; l'état est sauvé à chaque étape
-        forceTimer = setTimeout(() => process.exit(0), 5 * 60_000);
-        forceTimer.unref();
-      };
-      for (const s of ['SIGINT', 'SIGTERM', 'SIGBREAK', 'SIGHUP'] as const) {
-        process.on(s, () => stop(s));
-      }
+      const uninstall = installStopHandlers(controller, log);
       const quietMin = opts.quiet !== undefined ? Number(opts.quiet) : ctx.env.WATCH_QUIET_MINUTES;
       log(
         `surveillance de ${ctx.paths.raw()} — un dossier est traité après ${quietMin} min sans changement`,
@@ -145,7 +130,7 @@ export function registerPipelineCommands(program: Command): void {
         });
         log(`surveillance arrêtée (${n} contenu(s) traité(s))`);
       } finally {
-        clearTimeout(forceTimer);
+        uninstall();
         closeDb(db);
       }
     });

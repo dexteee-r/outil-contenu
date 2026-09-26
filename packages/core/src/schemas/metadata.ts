@@ -35,7 +35,8 @@ export const thumbnailPickSchema = z
   .object({
     clipId: z.string().min(1),
     atSec: z.number().nonnegative(),
-    what: z.string().min(2).max(60),
+    // Descriptif pour le journal : large, un double hit demande plus de mots
+    what: z.string().min(2).max(160),
   })
   .strict();
 export type ThumbnailSubject = z.infer<typeof thumbnailPickSchema>;

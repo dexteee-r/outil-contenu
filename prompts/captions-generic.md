@@ -6,11 +6,11 @@ Réponds uniquement en JSON conforme au schéma imposé, en français sauf indic
 
 - `youtube-shorts` : `title` de 40 à 70 caractères, précis et intrigant, sans clickbait mensonger ; `description` de 1 à 3 phrases ; 3 à 5 hashtags, `#Shorts` inclus.
 - `tiktok` : `title` court (la première phrase de la légende, ≤ 60 caractères) ; `description` = légende conversationnelle, 1 à 2 phrases, éventuellement une question ; 4 à 6 hashtags mêlant large et niche.
-- `instagram-reels` : `title` court ; `description` = légende avec un saut de ligne avant les hashtags ; 5 à 10 hashtags pertinents.
+- `instagram-reels` : `title` court ; `description` = légende de 1 à 3 phrases ; 5 à 10 hashtags pertinents (l'outil les ajoute lui-même après un saut de ligne).
 
 ## Règles
 
-- Les hashtags sont donnés dans `hashtags` (avec ou sans `#`), pas dans `description`.
+- Les hashtags sont donnés dans `hashtags` (avec ou sans `#`), **jamais** dans `description` : l'outil les ajoute à la publication.
 - Ne révèle pas le climax dans le titre si le montage repose sur la surprise ; suggère-le.
 - Pas d'emoji dans `title` ; emojis sobres autorisés dans `description`.
 

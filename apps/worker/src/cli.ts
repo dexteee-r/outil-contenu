@@ -9,6 +9,7 @@ import {
   openDb,
   runDoctor,
 } from '@outil/core';
+import { registerAppCommand } from './app-command.js';
 import { createContext } from './context.js';
 import {
   registerInspirationCommands,
@@ -90,6 +91,7 @@ function describeBudget(b: { mode: string; monthlyLimitEur?: number }): string {
   }
 }
 
+registerAppCommand(program);
 registerPipelineCommands(program);
 registerInspirationCommands(program);
 registerInspirationWebCommand(program);

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "cli": "tsx apps/worker/src/cli.ts",
+    "start": "pnpm cli app",
     "check": "pnpm cli doctor",
     "db:migrate": "pnpm cli db:migrate",
     "db:generate": "pnpm -C packages/core exec drizzle-kit generate",

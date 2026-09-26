@@ -1,0 +1,996 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Outil contenu</title>
+    <style>
+      :root {
+        --bg: #f6f6f8;
+        --panel: #ffffff;
+        --text: #16161d;
+        --muted: #6b6b78;
+        --line: #e3e3ea;
+        --accent: #f5b800;
+        --accent-text: #16161d;
+        --ok: #1f9d55;
+        --warn: #c77700;
+        --err: #d64545;
+        --info: #2f6fdb;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.05);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f0f14;
+          --panel: #18181f;
+          --text: #ececf1;
+          --muted: #9a9aa8;
+          --line: #2a2a34;
+          --accent: #ffcc00;
+          --accent-text: #0f0f14;
+          --ok: #3ecf7a;
+          --warn: #ffb347;
+          --err: #ff6b6b;
+          --info: #6ea8ff;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      a {
+        color: inherit;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 18px;
+        padding: 12px 24px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+      h1 {
+        margin: 0;
+        font-size: 17px;
+      }
+      nav {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      nav a {
+        text-decoration: none;
+        padding: 6px 12px;
+        border-radius: 8px;
+        color: var(--muted);
+      }
+      nav a.active {
+        background: var(--bg);
+        color: var(--text);
+        font-weight: 600;
+      }
+      .status {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--ok);
+        flex: none;
+      }
+      .dot.busy {
+        background: var(--info);
+        animation: pulse 1.2s infinite;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.35;
+        }
+      }
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+        display: grid;
+        gap: 20px;
+      }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: var(--shadow);
+        min-width: 0;
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 16px;
+      }
+      h3 {
+        margin: 14px 0 6px;
+        font-size: 14px;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 8px;
+        padding: 7px 14px;
+        cursor: pointer;
+      }
+      button.primary {
+        background: var(--accent);
+        color: var(--accent-text);
+        border-color: transparent;
+        font-weight: 600;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      input,
+      select,
+      textarea {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--bg);
+        padding: 7px 10px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 80px;
+        resize: vertical;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 16px;
+      }
+      .card {
+        display: block;
+        text-decoration: none;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+      .card:hover {
+        border-color: var(--accent);
+      }
+      .thumb {
+        aspect-ratio: 16 / 9;
+        background: var(--bg);
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .card .body {
+        padding: 10px 12px 12px;
+        display: grid;
+        gap: 4px;
+      }
+      .card .title {
+        font-weight: 600;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .badge {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1px solid currentColor;
+      }
+      .badge.ready {
+        color: var(--ok);
+      }
+      .badge.processing,
+      .badge.pending {
+        color: var(--info);
+      }
+      .badge.failed {
+        color: var(--err);
+      }
+      .badge.interrupted {
+        color: var(--warn);
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        align-items: center;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .detail {
+        display: grid;
+        grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
+      }
+      video {
+        width: 100%;
+        border-radius: 12px;
+        background: #000;
+        display: block;
+      }
+      .thumbs {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+        align-items: start;
+      }
+      .thumbs a {
+        position: relative;
+        display: block;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 2px solid transparent;
+      }
+      .thumbs a.selected {
+        border-color: var(--accent);
+      }
+      .thumbs img {
+        width: 100%;
+        display: block;
+      }
+      .thumbs span {
+        position: absolute;
+        left: 6px;
+        top: 6px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 6px;
+      }
+      .caption {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+      }
+      .caption header {
+        all: unset;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+        font-weight: 600;
+      }
+      .caption header button {
+        margin-left: auto;
+        padding: 3px 10px;
+        font-size: 13px;
+      }
+      .caption pre {
+        margin: 0;
+        white-space: pre-wrap;
+        font: inherit;
+        font-size: 14px;
+      }
+      .steps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .step {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: var(--bg);
+        border: 1px solid var(--line);
+      }
+      .step.done {
+        color: var(--ok);
+      }
+      .step.failed {
+        color: var(--err);
+      }
+      .step.running {
+        color: var(--info);
+      }
+      .error {
+        color: var(--err);
+        font-size: 13px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .drop {
+        border: 2px dashed var(--line);
+        border-radius: 12px;
+        padding: 28px;
+        text-align: center;
+        color: var(--muted);
+      }
+      .drop.over {
+        border-color: var(--accent);
+        color: var(--text);
+      }
+      progress {
+        width: 100%;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .bar {
+        height: 8px;
+        border-radius: 4px;
+        background: var(--bg);
+        overflow: hidden;
+        min-width: 120px;
+      }
+      .bar div {
+        height: 100%;
+        background: var(--accent);
+      }
+      .bar.over div {
+        background: var(--err);
+      }
+      pre.logs {
+        max-height: 320px;
+        overflow: auto;
+        font-size: 12px;
+        background: var(--bg);
+        padding: 10px;
+        border-radius: 8px;
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--text);
+        color: var(--panel);
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
+        max-width: 90vw;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+      .empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 30px;
+      }
+      @media (max-width: 800px) {
+        main {
+          padding: 16px;
+        }
+        header {
+          padding: 10px 16px;
+        }
+        .status {
+          margin-left: 0;
+          width: 100%;
+        }
+        .detail {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🎬 Outil contenu</h1>
+      <nav>
+        <a href="#/" data-nav="contents">Contenus</a>
+        <a href="#/deposer" data-nav="upload">Déposer</a>
+        <a href="#/couts" data-nav="costs">Coûts</a>
+        <a href="#/comptes" data-nav="accounts">Comptes</a>
+      </nav>
+      <div class="status">
+        <span class="dot" id="dot"></span>
+        <span id="statusText">…</span>
+        <button id="scanNow" title="Traiter les dossiers de /raw sans attendre la période de calme">
+          Traiter maintenant
+        </button>
+      </div>
+    </header>
+    <main id="app"></main>
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const app = document.getElementById('app');
+      const esc = (s) =>
+        String(s ?? '').replace(
+          /[&<>"']/g,
+          (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+        );
+      const STATUS = {
+        ready: 'prêt',
+        processing: 'en cours',
+        pending: 'en attente',
+        failed: 'échec',
+        interrupted: 'interrompu',
+      };
+      const STEP = {
+        ingest: 'import',
+        tag: 'dérushage',
+        edl: 'montage',
+        render: 'rendu',
+        captions: 'légendes',
+        thumbnail: 'miniature',
+        qc: 'contrôle',
+        deliver: 'livraison',
+        notify: 'Discord',
+      };
+      const PLATFORM = {
+        'youtube-shorts': 'YouTube Shorts',
+        tiktok: 'TikTok',
+        'instagram-reels': 'Instagram Reels',
+      };
+      const badge = (s) => `<span class="badge ${esc(s)}">${esc(STATUS[s] ?? s)}</span>`;
+      const date = (iso) =>
+        iso
+          ? new Date(iso).toLocaleString('fr-FR', {
+              day: '2-digit',
+              month: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '';
+      const usd = (v) => (v == null ? '—' : `${v.toFixed(3)} $`);
+      /** Erreur lisible : résumé (message Google extrait du JSON), détail brut dépliable. */
+      function errorBlock(raw, prefix = '') {
+        let summary = raw;
+        const m = /"message":"([^"]{0,400})/.exec(raw);
+        if (m) summary = m[1].replace(/\\n/g, ' ');
+        if (/PerDay/.test(raw)) summary = `Quota Gemini du jour épuisé (${summary.slice(0, 80)}…)`;
+        summary = summary.length > 220 ? `${summary.slice(0, 220)}…` : summary;
+        return `<details class="error"><summary>${esc(prefix + summary)}</summary><pre class="logs">${esc(raw)}</pre></details>`;
+      }
+      const eur = (v) => `${(v ?? 0).toFixed(2)} €`;
+      const media = (id, name, v) =>
+        `/media/${encodeURIComponent(id)}/${encodeURIComponent(name)}${v ? `?v=${v}` : ''}`;
+
+      let toastTimer;
+      function toast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+      }
+      async function api(url, init) {
+        const res = await fetch(url, init);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+        return body;
+      }
+      function pref(key, fallback) {
+        try {
+          return localStorage.getItem(key) ?? fallback;
+        } catch {
+          return fallback;
+        }
+      }
+      function setPref(key, value) {
+        try {
+          localStorage.setItem(key, value);
+        } catch {
+          /* stockage indisponible : sans importance */
+        }
+      }
+
+      // ─── Barre d'état ───────────────────────────────────────────────────
+      let lastStatus = null;
+      async function refreshStatus() {
+        try {
+          const s = await api('/api/status');
+          lastStatus = s;
+          const busy = !!s.queue.current;
+          document.getElementById('dot').classList.toggle('busy', busy);
+          const waiting = s.queue.waiting.length ? ` · ${s.queue.waiting.length} en attente` : '';
+          const pending = (s.scan?.folders ?? []).filter((f) => f.videos > 0);
+          document.getElementById('statusText').textContent = busy
+            ? `▶ ${s.queue.current.label}${waiting}`
+            : pending.length
+              ? `${pending.length} dossier(s) déposé(s), traitement après ${s.quietMinutes} min de calme`
+              : s.watching
+                ? 'En veille — surveille les dépôts'
+                : 'En veille';
+          document.getElementById('scanNow').disabled = !s.watching || pending.length === 0;
+          const logs = document.getElementById('logs');
+          if (logs) {
+            const atBottom = logs.scrollTop + logs.clientHeight >= logs.scrollHeight - 20;
+            logs.textContent = s.logs.join('\n') || 'Aucun événement pour l’instant.';
+            if (atBottom) logs.scrollTop = logs.scrollHeight;
+          }
+        } catch {
+          document.getElementById('statusText').textContent = 'Outil injoignable';
+        }
+      }
+      document.getElementById('scanNow').onclick = async () => {
+        try {
+          await api('/api/scan', { method: 'POST' });
+          toast('Traitement lancé');
+          setTimeout(refreshStatus, 800);
+        } catch (e) {
+          toast(e.message);
+        }
+      };
+
+      // ─── Vues ───────────────────────────────────────────────────────────
+      async function viewContents() {
+        const accounts = (await api('/api/accounts')).accounts;
+        const current = pref('account', '');
+        app.innerHTML = `
+          <section>
+            <div class="toolbar">
+              <h2 style="margin:0">Contenus</h2>
+              <select id="acc">
+                <option value="">Tous les comptes</option>
+                ${accounts.map((a) => `<option value="${esc(a.slug)}" ${a.slug === current ? 'selected' : ''}>${esc(a.displayName ?? a.slug)}</option>`).join('')}
+              </select>
+              <span class="muted" id="count"></span>
+            </div>
+          </section>
+          <div class="grid" id="list"></div>
+          <section>
+            <details>
+              <summary><strong>Journal</strong> <span class="muted">— derniers événements du worker</span></summary>
+              <pre class="logs" id="logs">…</pre>
+            </details>
+          </section>`;
+        document.getElementById('acc').onchange = (e) => {
+          setPref('account', e.target.value);
+          loadList();
+        };
+        await loadList();
+        refreshStatus();
+      }
+
+      async function loadList() {
+        const list = document.getElementById('list');
+        if (!list) return;
+        const acc = document.getElementById('acc').value;
+        const { contents } = await api(
+          `/api/contents${acc ? `?account=${encodeURIComponent(acc)}` : ''}`,
+        );
+        document.getElementById('count').textContent = `${contents.length} contenu(s)`;
+        list.innerHTML = contents.length
+          ? contents
+              .map(
+                (c) => `
+          <a class="card" href="#/c/${encodeURIComponent(c.id)}">
+            <div class="thumb">${c.preview ? `<img loading="lazy" src="${media(c.id, c.preview)}" alt="">` : esc(STATUS[c.status] ?? c.status)}</div>
+            <div class="body">
+              <div class="title">${esc(c.title ?? c.id)}</div>
+              <div class="meta">${badge(c.status)}${c.version > 1 ? `<span>v${c.version}</span>` : ''}
+                ${c.durationSec ? `<span>${Math.round(c.durationSec)} s</span>` : ''}
+                <span>${date(c.createdAt)}</span><span>${usd(c.costUsd)}</span></div>
+              <div class="muted">${esc(c.id)}</div>
+            </div>
+          </a>`,
+              )
+              .join('')
+          : `<div class="empty">Aucun contenu. Dépose des rushs dans l’onglet « Déposer » ou dans E:\\contenu\\raw.</div>`;
+      }
+
+      async function viewContent(id) {
+        const c = await api(`/api/contents/${encodeURIComponent(id)}`);
+        const hasVideo = c.files.includes('video.mp4');
+        const captions = c.captions ? Object.entries(c.captions) : [];
+        const lastJob = c.jobs[0];
+        app.innerHTML = `
+          <div class="toolbar"><a href="#/">← Contenus</a></div>
+          <section>
+            <div class="toolbar">
+              <h2 style="margin:0">${esc(captions[0]?.[1]?.title ?? c.id)}</h2>
+              ${badge(c.status)} ${c.version > 1 ? `<span class="muted">version ${c.version}</span>` : ''}
+            </div>
+            <div class="meta" style="margin-top:6px">
+              <span>${esc(c.id)}</span><span>${date(c.createdAt)}</span>
+              ${c.render ? `<span>${Math.round(c.render.durationSec)} s</span>` : ''}
+              ${c.music ? `<span>🎵 ${esc(c.music.title)}</span>` : ''}
+              <span>coût ${usd(c.costUsd)}</span>
+            </div>
+            <div class="muted" style="margin-top:4px">📁 ${esc(c.readyDir)}</div>
+            <div class="toolbar" style="margin-top:12px">
+              ${['failed', 'interrupted', 'processing'].includes(c.status) ? `<button class="primary" data-act="resume">Reprendre</button>` : ''}
+              ${c.status === 'ready' ? `<button data-act="thumbnails">Refaire les miniatures</button>` : ''}
+            </div>
+            ${lastJob?.error && c.status !== 'ready' ? errorBlock(lastJob.error, 'Dernière erreur : ') : ''}
+          </section>
+          <div class="detail">
+            <section>
+              <h2>Vidéo</h2>
+              ${hasVideo ? `<video controls preload="metadata" src="${media(c.id, 'video.mp4')}"></video>` : `<div class="empty">Pas encore rendue</div>`}
+              ${c.edl ? `<h3>Montage</h3><p class="muted">${esc(c.edl.notes)}</p>` : ''}
+            </section>
+            <div style="display:grid;gap:20px;min-width:0">
+              <section>
+                <h2>Miniatures ${c.thumbnailTitle ? `<span class="muted">« ${esc(c.thumbnailTitle)} »</span>` : ''}</h2>
+                ${
+                  c.thumbnails.length
+                    ? `<div class="thumbs">${c.thumbnails
+                        .filter((t) => c.files.includes(t.name))
+                        .map(
+                          (
+                            t,
+                          ) => `<a href="${media(c.id, t.name)}" target="_blank" class="${t.selected ? 'selected' : ''}">
+                            <img loading="lazy" src="${media(c.id, t.name)}" alt=""><span>${esc(t.format)} · v${t.variant}${t.selected ? ' ★' : ''}</span></a>`,
+                        )
+                        .join('')}</div>`
+                    : `<div class="empty">Pas encore de miniature</div>`
+                }
+              </section>
+              <section>
+                <h2>Légendes</h2>
+                ${
+                  captions.length
+                    ? captions
+                        .map(([pl, cap], i) => {
+                          const list = (cap.hashtags ?? []).map((h) =>
+                            h.startsWith('#') ? h : `#${h}`,
+                          );
+                          // Hashtags déjà écrits dans la description (anciennes légendes) : pas en double
+                          const tags = list.every((t) => cap.description.includes(t))
+                            ? ''
+                            : list.join(' ');
+                          const full = [cap.description, tags].filter(Boolean).join('\n\n');
+                          return `<div class="caption">
+                            <header>${esc(PLATFORM[pl] ?? pl)}<button data-copy="t${i}">Copier le titre</button><button data-copy="d${i}">Copier la description</button></header>
+                            <pre id="t${i}"><strong>${esc(cap.title)}</strong></pre>
+                            <pre id="d${i}" style="margin-top:6px">${esc(full)}</pre>
+                          </div>`;
+                        })
+                        .join('')
+                    : `<div class="empty">Pas encore de légendes</div>`
+                }
+              </section>
+              ${
+                c.status === 'ready'
+                  ? `<section>
+                <h2>Relancer avec un retour</h2>
+                <div class="toolbar" style="margin-bottom:8px">
+                  <label><input type="radio" name="target" value="video" checked> Le montage</label>
+                  <label><input type="radio" name="target" value="thumbnail"> La miniature</label>
+                </div>
+                <textarea id="fbText" placeholder="Ex. : coupe plus tôt, garde la réaction ; ou : mets le nom du set dans l'étiquette"></textarea>
+                <div class="toolbar" style="margin-top:8px">
+                  <button class="primary" id="fbSend">Créer la version ${c.version + 1}</button>
+                  <span class="muted">La version actuelle sera rangée dans v${c.version}/</span>
+                </div>
+              </section>`
+                  : ''
+              }
+            </div>
+          </div>
+          <section>
+            <h2>Historique</h2>
+            ${c.jobs
+              .map(
+                (
+                  j,
+                ) => `<h3>${j.kind === 'feedback' ? 'Relance sur retour' : 'Traitement'} #${j.id} ${badge(j.status === 'done' ? 'ready' : j.status)} <span class="muted">${date(j.startedAt)}</span></h3>
+                <div class="steps">${j.steps
+                  .map(
+                    (s) =>
+                      `<span class="step ${esc(s.status)}" title="${esc(s.error ?? '')}">${esc(STEP[s.step] ?? s.step)}${s.durationMs ? ` · ${(s.durationMs / 1000).toFixed(0)} s` : ''}</span>`,
+                  )
+                  .join('')}</div>
+                ${j.error ? errorBlock(j.error) : ''}`,
+              )
+              .join('')}
+            ${c.feedback.length ? `<h3>Retours</h3><table>${c.feedback.map((f) => `<tr><td>${date(f.createdAt)}</td><td>${f.target === 'video' ? 'montage' : 'miniature'}</td><td>${esc(f.text)}</td></tr>`).join('')}</table>` : ''}
+            ${
+              c.versions.length
+                ? `<h3>Versions précédentes</h3><table>${c.versions
+                    .map(
+                      (v) =>
+                        `<tr><td>v${v.version}</td><td>${v.files
+                          .map(
+                            (f) =>
+                              `<a href="${media(c.id, f, v.version)}" target="_blank">${esc(f)}</a>`,
+                          )
+                          .join(' · ')}</td></tr>`,
+                    )
+                    .join('')}</table>`
+                : ''
+            }
+            ${
+              Object.keys(c.costByModule).length
+                ? `<h3>Coûts</h3><div class="meta">${Object.entries(c.costByModule)
+                    .map(([m, v]) => `<span>${esc(m)} : ${usd(v)}</span>`)
+                    .join('')}</div>`
+                : ''
+            }
+          </section>`;
+
+        app.querySelectorAll('[data-copy]').forEach((b) => {
+          b.onclick = async () => {
+            const text = document.getElementById(b.dataset.copy).innerText;
+            try {
+              await navigator.clipboard.writeText(text);
+              toast('Copié');
+            } catch {
+              toast('Copie impossible : sélectionne le texte à la main');
+            }
+          };
+        });
+        app.querySelectorAll('[data-act]').forEach((b) => {
+          b.onclick = async () => {
+            b.disabled = true;
+            try {
+              await api(`/api/contents/${encodeURIComponent(c.id)}/${b.dataset.act}`, {
+                method: 'POST',
+              });
+              toast('Ajouté à la file de travail');
+              refreshStatus();
+            } catch (e) {
+              toast(e.message);
+              b.disabled = false;
+            }
+          };
+        });
+        const send = document.getElementById('fbSend');
+        if (send) {
+          send.onclick = async () => {
+            const text = document.getElementById('fbText').value.trim();
+            const target = app.querySelector('input[name=target]:checked').value;
+            if (!text) return toast('Écris d’abord ton retour');
+            send.disabled = true;
+            try {
+              await api(`/api/contents/${encodeURIComponent(c.id)}/feedback`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target, text }),
+              });
+              toast('Retour envoyé : la nouvelle version arrive (message Discord à la fin)');
+              document.getElementById('fbText').value = '';
+              refreshStatus();
+            } catch (e) {
+              toast(e.message);
+            } finally {
+              send.disabled = false;
+            }
+          };
+        }
+      }
+
+      async function viewUpload() {
+        const accounts = (await api('/api/accounts')).accounts;
+        // Date locale (toISOString donnerait la veille entre minuit et 2 h en été)
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        app.innerHTML = `
+          <section>
+            <h2>Déposer des rushs</h2>
+            <p class="muted">Une session = un dossier. Les fichiers vont dans <code>raw\\&lt;compte&gt;\\&lt;session&gt;</code> ; le dossier est traité ${lastStatus?.quietMinutes ?? 2} min après le dernier envoi (ou tout de suite avec « Traiter maintenant »).</p>
+            <div class="toolbar" style="margin:12px 0">
+              <label>Compte <select id="upAcc">${accounts.map((a) => `<option value="${esc(a.slug)}" ${a.slug === pref('account', '') ? 'selected' : ''}>${esc(a.displayName ?? a.slug)}</option>`).join('')}</select></label>
+              <label>Session <input id="upSession" value="${today}" size="16"></label>
+            </div>
+            <div class="drop" id="drop">Glisse tes vidéos ici, ou <label style="text-decoration:underline;cursor:pointer">choisis-les<input type="file" id="upFiles" multiple accept="video/*,.mov,.mp4,.m4v" hidden></label></div>
+            <div id="upList" style="display:grid;gap:8px;margin-top:12px"></div>
+          </section>`;
+        const drop = document.getElementById('drop');
+        const onFiles = (files) => uploadAll([...files]);
+        document.getElementById('upFiles').onchange = (e) => onFiles(e.target.files);
+        drop.ondragover = (e) => {
+          e.preventDefault();
+          drop.classList.add('over');
+        };
+        drop.ondragleave = () => drop.classList.remove('over');
+        drop.ondrop = (e) => {
+          e.preventDefault();
+          drop.classList.remove('over');
+          onFiles(e.dataTransfer.files);
+        };
+      }
+
+      async function uploadAll(files) {
+        const account = document.getElementById('upAcc').value;
+        const session = document.getElementById('upSession').value.trim();
+        const list = document.getElementById('upList');
+        for (const file of files) {
+          const row = document.createElement('div');
+          row.innerHTML = `<div class="meta"><strong>${esc(file.name)}</strong><span>${(file.size / 1e6).toFixed(1)} Mo</span><span class="st">envoi…</span></div><progress max="100" value="0"></progress>`;
+          list.appendChild(row);
+          const bar = row.querySelector('progress');
+          const st = row.querySelector('.st');
+          try {
+            await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              const q = new URLSearchParams({ account, session, name: file.name });
+              xhr.open('POST', `/api/upload?${q}`);
+              xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) bar.value = (e.loaded / e.total) * 100;
+              };
+              xhr.onload = () => {
+                if (xhr.status < 300) resolve();
+                else {
+                  let msg = `HTTP ${xhr.status}`;
+                  try {
+                    msg = JSON.parse(xhr.responseText).error || msg;
+                  } catch {
+                    /* réponse non JSON */
+                  }
+                  reject(new Error(msg));
+                }
+              };
+              xhr.onerror = () => reject(new Error('connexion interrompue'));
+              xhr.send(file);
+            });
+            bar.value = 100;
+            st.textContent = '✔ déposé';
+          } catch (e) {
+            st.textContent = `✖ ${e.message}`;
+            st.className = 'error';
+          }
+        }
+        refreshStatus();
+      }
+
+      async function viewCosts() {
+        const c = await api('/api/costs');
+        const days = Object.entries(c.byDay)
+          .sort((a, b) => b[0].localeCompare(a[0]))
+          .slice(0, 30);
+        const maxDay = Math.max(0.01, ...days.map(([, v]) => v));
+        const accounts = Object.keys({ ...c.budgets, ...c.monthByAccount });
+        app.innerHTML = `
+          <section>
+            <h2>Ce mois-ci (${esc(c.month)})</h2>
+            <table><tr><th>Compte</th><th>Dépensé</th><th>Budget</th><th></th></tr>
+            ${accounts
+              .map((a) => {
+                const spent = c.monthByAccount[a] ?? 0;
+                const b = c.budgets[a];
+                const limit = b?.monthlyLimitEur;
+                const pct = limit ? Math.min(100, (spent / limit) * 100) : 0;
+                const mode = !b
+                  ? '—'
+                  : b.mode === 'unlimited'
+                    ? 'illimité'
+                    : b.mode === 'cap'
+                      ? `plafond ${eur(limit)}`
+                      : `alerte à ${eur(limit)}`;
+                return `<tr><td>${esc(a)}</td><td>${eur(spent)}</td><td>${esc(mode)}</td><td>${limit ? `<div class="bar ${spent > limit ? 'over' : ''}"><div style="width:${pct}%"></div></div>` : ''}</td></tr>`;
+              })
+              .join('')}</table>
+          </section>
+          <section>
+            <h2>Par module (60 derniers jours)</h2>
+            <div class="meta">${
+              Object.entries(c.byModule)
+                .map(([m, v]) => `<span>${esc(m)} : ${eur(v)}</span>`)
+                .join('') || 'Aucun appel'
+            }</div>
+            <p class="muted">${c.calls} appel(s) API. Les appels Gemini du palier gratuit n'ont pas de prix : ils comptent pour 0.</p>
+          </section>
+          <section>
+            <h2>Par jour</h2>
+            <table>${days.map(([d, v]) => `<tr><td style="width:110px">${esc(d)}</td><td style="width:90px">${eur(v)}</td><td><div class="bar"><div style="width:${(v / maxDay) * 100}%"></div></div></td></tr>`).join('') || '<tr><td class="empty">Aucune dépense</td></tr>'}</table>
+          </section>`;
+      }
+
+      async function viewAccounts() {
+        const { accounts } = await api('/api/accounts');
+        app.innerHTML = `<section><h2>Comptes</h2><p class="muted">Configuration en lecture seule : elle se modifie dans <code>accounts\\&lt;compte&gt;\\account.yaml</code>.</p>
+          <table><tr><th>Compte</th><th>Type</th><th>Plateformes</th><th>Durée</th><th>Budget</th><th>À compléter</th></tr>
+          ${accounts
+            .map((a) =>
+              a.error
+                ? `<tr><td>${esc(a.slug)}</td><td colspan="5" class="error">${esc(a.error)}</td></tr>`
+                : `<tr><td><strong>${esc(a.displayName)}</strong><div class="muted">${esc(a.slug)}</div></td><td>${esc(a.contentType)}</td><td>${a.platforms.map((p) => esc(PLATFORM[p] ?? p)).join('<br>')}</td><td>${a.durationRange.min}–${a.durationRange.max} s</td><td>${esc(a.budget.mode)}${a.budget.monthlyLimitEur ? ` · ${eur(a.budget.monthlyLimitEur)}` : ''}</td><td class="muted">${a.warnings.map(esc).join('<br>') || '—'}</td></tr>`,
+            )
+            .join('')}</table></section>`;
+      }
+
+      // ─── Routeur ────────────────────────────────────────────────────────
+      let refreshTimer;
+      async function route() {
+        clearInterval(refreshTimer);
+        const hash = location.hash || '#/';
+        const nav = hash.startsWith('#/deposer')
+          ? 'upload'
+          : hash.startsWith('#/couts')
+            ? 'costs'
+            : hash.startsWith('#/comptes')
+              ? 'accounts'
+              : 'contents';
+        document
+          .querySelectorAll('nav a')
+          .forEach((a) => a.classList.toggle('active', a.dataset.nav === nav));
+        try {
+          const m = /^#\/c\/(.+)$/.exec(hash);
+          if (m) {
+            const id = decodeURIComponent(m[1]);
+            await viewContent(id);
+            // Rafraîchit le détail tant que le contenu est en cours (sans toucher au lecteur ni au formulaire)
+            refreshTimer = setInterval(async () => {
+              const s = await api(`/api/contents/${encodeURIComponent(id)}`).catch(() => null);
+              const typing = document.activeElement?.id === 'fbText';
+              if (s && s.status === 'processing' && !typing) viewContent(id);
+            }, 5000);
+          } else if (nav === 'upload') await viewUpload();
+          else if (nav === 'costs') await viewCosts();
+          else if (nav === 'accounts') await viewAccounts();
+          else {
+            await viewContents();
+            refreshTimer = setInterval(loadList, 5000);
+          }
+        } catch (e) {
+          app.innerHTML = `<section class="error">${esc(e.message)}</section>`;
+        }
+      }
+      window.addEventListener('hashchange', route);
+      route();
+      refreshStatus();
+      setInterval(refreshStatus, 3000);
+    </script>
+  </body>
+</html>
