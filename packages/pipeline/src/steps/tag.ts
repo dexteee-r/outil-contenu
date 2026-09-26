@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   buildTaggingPrompt,
+  isDailyQuotaError,
+  isTransientApiError,
   makeProxy,
   mergeTagging,
   proxyPathFor,
@@ -71,18 +73,19 @@ export async function tag(
   const cached = readCache(p, key);
 
   let output: TaggingOutput;
-  let usedModel = model;
+  let usedModel: string;
   if (cached && validateTaggingOutput(cached, clips).length === 0) {
     output = cached;
     usedModel = `${model} (cache)`;
+    state.models = { ...state.models, tagging: model };
     p.log(`tag : dérushage repris du cache (${key.slice(0, 8)})`);
   } else {
     output = await tagWithGemini(p, state, clips, prompt, model);
+    usedModel = state.models?.tagging ?? model;
     writeCache(p, key, output);
   }
 
   state.tagging = mergeTagging(clips, output, { model: usedModel });
-  state.models = { ...state.models, tagging: model };
   fs.writeFileSync(
     path.join(state.workDir, 'tagging.json'),
     JSON.stringify(state.tagging, null, 2),
@@ -93,6 +96,38 @@ export async function tag(
   p.log(
     `tag : ${state.tagging.highlights.length} moments forts${climax ? ` · climax ${climax.clipId} ${climax.start.toFixed(1)}→${climax.end.toFixed(1)} s (${climax.score.toFixed(2)})` : ' · pas de climax'}`,
   );
+}
+
+/**
+ * Essaie les modèles dans l'ordre : on passe au suivant si le modèle a épuisé son quota du jour
+ * ou reste surchargé après ses propres tentatives ; toute autre erreur remonte telle quelle.
+ */
+export async function withModelFallback<T>(
+  models: string[],
+  call: (model: string) => Promise<T>,
+  log: (m: string) => void,
+): Promise<T> {
+  for (let i = 0; ; i++) {
+    const m = models[i];
+    if (!m) throw new Error('aucun modèle de dérushage configuré');
+    try {
+      return await call(m);
+    } catch (err) {
+      const next = models[i + 1];
+      if (!next || !(isDailyQuotaError(err) || isTransientApiError(err))) throw err;
+      log(
+        `tag : ${m} ${isDailyQuotaError(err) ? 'a épuisé son quota du jour' : 'reste indisponible'} — bascule sur ${next}`,
+      );
+    }
+  }
+}
+
+/** Modèles de secours du dérushage (MODEL_TAGGING_FALLBACKS, séparés par des virgules). */
+export function tagFallbacks(p: PipelineContext): string[] {
+  return (p.ctx.env.MODEL_TAGGING_FALLBACKS ?? '')
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean);
 }
 
 async function tagWithGemini(
@@ -127,9 +162,27 @@ async function tagWithGemini(
     contentId: state.contentId,
   };
 
+  // Modèles de secours : chacun a son propre quota gratuit (20 requêtes/jour/modèle)
+  const models = [model, ...tagFallbacks(p).filter((m) => m !== model)];
+  const generate = (parts: GeminiPart[]) =>
+    withModelFallback(
+      models,
+      async (m) => ({
+        ...(await gemini.generateJson({
+          model: m,
+          schema: taggingOutputSchema,
+          parts,
+          meta: { ...meta, model: m },
+        })),
+        model: m,
+      }),
+      p.log,
+    );
+
   let parts = baseParts;
   for (let attempt = 1; ; attempt++) {
-    const { data } = await gemini.generateJson({ model, schema: taggingOutputSchema, parts, meta });
+    const { data, model: used } = await generate(parts);
+    state.models = { ...state.models, tagging: used };
     const issues = validateTaggingOutput(data, clips);
     if (issues.length === 0) return data;
     if (attempt >= 2) {

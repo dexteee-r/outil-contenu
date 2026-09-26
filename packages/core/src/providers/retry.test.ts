@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { backoffDelayMs, isTransientApiError, retry } from './retry.js';
+import { backoffDelayMs, isDailyQuotaError, isTransientApiError, retry } from './retry.js';
 
 /** Erreur imitant celles du SDK Google (statut HTTP porté par l'erreur). */
 const apiError = (status: number, message = 'erreur api') =>
@@ -24,6 +24,16 @@ describe('isTransientApiError', () => {
       ),
     ).toBe(false);
     expect(isTransientApiError(apiError(429, 'Quota exceeded, limit: 10'))).toBe(true);
+  });
+
+  it('ne rejoue pas un quota journalier épuisé (il faudrait attendre le lendemain)', () => {
+    const daily = apiError(
+      429,
+      '{"error":{"code":429,"message":"You exceeded your current quota … limit: 20","details":[{"quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier"}]}}',
+    );
+    expect(isDailyQuotaError(daily)).toBe(true);
+    expect(isTransientApiError(daily)).toBe(false);
+    expect(isDailyQuotaError(apiError(429, 'Quota exceeded, PerMinute'))).toBe(false);
   });
 
   it('ne rejoue pas les erreurs de contrat', () => {

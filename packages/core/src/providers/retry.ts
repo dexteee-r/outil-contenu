@@ -18,6 +18,16 @@ export interface RetryOptions {
 
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504, 529]); // 529 = Anthropic « overloaded »
 
+/**
+ * Quota journalier épuisé (palier gratuit Gemini : 20 requêtes/jour/modèle) : réessayer avant le
+ * lendemain ne sert à rien et consomme encore — on bascule sur un autre modèle ou on s'arrête.
+ */
+export function isDailyQuotaError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const message = (err as { message?: unknown }).message;
+  return typeof message === 'string' && /PerDay/i.test(message) && /quota/i.test(message);
+}
+
 /** Erreur passagère d'API (statut HTTP ou message Google « UNAVAILABLE » / « RESOURCE_EXHAUSTED »). */
 export function isTransientApiError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
@@ -25,6 +35,7 @@ export function isTransientApiError(err: unknown): boolean {
   const message = typeof e.message === 'string' ? e.message : '';
   // Quota à 0 = modèle non inclus dans le palier (ex. Nano Banana Pro en gratuit) : inutile de réessayer
   if (/limit:\s*0\b/.test(message)) return false;
+  if (isDailyQuotaError(err)) return false;
   const status =
     typeof e.status === 'number' ? e.status : typeof e.code === 'number' ? e.code : undefined;
   if (status !== undefined && RETRYABLE_STATUS.has(status)) return true;

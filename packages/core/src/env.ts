@@ -19,6 +19,11 @@ export const envSchema = z.object({
   /** Fournisseur des miniatures : gemini (clé Google) ou kie (kie.ai, plusieurs modèles) */
   IMAGE_PROVIDER: z.preprocess(emptyToUndefined, z.enum(['gemini', 'kie']).default('gemini')),
   MODEL_TAGGING: optionalString,
+  /** Modèles essayés ensuite si MODEL_TAGGING a épuisé son quota du jour ou reste surchargé */
+  MODEL_TAGGING_FALLBACKS: z.preprocess(
+    emptyToUndefined,
+    z.string().default('gemini-3.6-flash,gemini-3.5-flash'),
+  ),
   MODEL_IMAGE: optionalString,
   MODEL_EDL: z.preprocess(emptyToUndefined, z.string().default('claude-sonnet-5')),
   MODEL_CAPTIONS: z.preprocess(emptyToUndefined, z.string().default('claude-sonnet-5')),

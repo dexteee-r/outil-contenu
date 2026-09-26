@@ -5,6 +5,7 @@ import { contents, listAccounts } from '@outil/core';
 import type { PipelineContext } from './context.js';
 import { isVideoFile } from './ids.js';
 import { notifyDisk, notifyFailed } from './notify.js';
+import { JobQueue } from './queue.js';
 import { InterruptedError, resumeContent, runContent, type RunOptions } from './runner.js';
 
 /**
@@ -16,6 +17,9 @@ import { InterruptedError, resumeContent, runContent, type RunOptions } from './
 
 /** Fichiers temporaires de Syncthing (transfert en cours). */
 export const SYNCTHING_TEMP = /^(\.syncthing\..*\.tmp|~syncthing~.*)$/i;
+/** Fichiers en cours d'envoi depuis le tableau de bord (renommés une fois complets). */
+export const UPLOAD_TEMP = /\.part$/i;
+const isTempFile = (name: string) => SYNCTHING_TEMP.test(name) || UPLOAD_TEMP.test(name);
 
 /** Marqueur déposé dans un dossier traité (idempotence, visible dans l'explorateur). */
 export const PROCESSED_MARKER = '.processed';
@@ -53,10 +57,8 @@ export function scanInbox(p: PipelineContext): InboxFolder[] {
       const dir = path.join(root, entry.name);
       if (fs.existsSync(path.join(dir, PROCESSED_MARKER)) || known.has(norm(dir))) continue;
       const files = fs.readdirSync(dir, { withFileTypes: true }).filter((f) => f.isFile());
-      const hasTemp = files.some((f) => SYNCTHING_TEMP.test(f.name));
-      const videos = files
-        .map((f) => f.name)
-        .filter((n) => isVideoFile(n) && !SYNCTHING_TEMP.test(n));
+      const hasTemp = files.some((f) => isTempFile(f.name));
+      const videos = files.map((f) => f.name).filter((n) => isVideoFile(n) && !isTempFile(n));
       const signature = files
         .map((f) => {
           const st = fs.statSync(path.join(dir, f.name));
@@ -95,6 +97,11 @@ export class InboxTracker {
       if (!f.hasTemp && f.videos.length > 0 && t - since >= this.quietMs) out.push(f);
     }
     return out;
+  }
+
+  /** « Traiter maintenant » : dossiers complets, sans attendre la période de calme. */
+  readyNow(folders: InboxFolder[]): InboxFolder[] {
+    return folders.filter((f) => !f.hasTemp && f.videos.length > 0);
   }
 
   /** Oublie un dossier (après traitement). */
@@ -139,20 +146,50 @@ export interface WatchOptions {
   now?: (() => number) | undefined;
   /** Étapes de remplacement (tests) */
   run?: RunOptions['steps'];
+  /** File partagée avec le tableau de bord (un traitement à la fois) */
+  queue?: JobQueue | undefined;
+  /** « Traiter maintenant » et dernier balayage, pour le tableau de bord */
+  control?: WatchControl | undefined;
 }
 
-const sleep = (ms: number, signal?: AbortSignal) =>
+/**
+ * Pilotage de la surveillance depuis le tableau de bord : « traiter maintenant » réveille le
+ * worker et traite les dossiers présents sans attendre la période de calme.
+ */
+export class WatchControl {
+  lastScan: { at: string; folders: InboxFolder[] } | null = null;
+  private forced = false;
+  private wake: (() => void) | null = null;
+
+  scanNow(): void {
+    this.forced = true;
+    this.wake?.();
+  }
+
+  /** Vrai une seule fois après un `scanNow()`. */
+  takeForced(): boolean {
+    const f = this.forced;
+    this.forced = false;
+    return f;
+  }
+
+  /** Réservé à la boucle : fonction qui interrompt l'attente en cours. */
+  setWaker(fn: (() => void) | null): void {
+    this.wake = fn;
+  }
+}
+
+const sleep = (ms: number, signal?: AbortSignal, control?: WatchControl) =>
   new Promise<void>((resolve) => {
     if (signal?.aborted) return resolve();
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(t);
-        resolve();
-      },
-      { once: true },
-    );
+    const done = () => {
+      clearTimeout(t);
+      control?.setWaker(null);
+      resolve();
+    };
+    const t = setTimeout(done, ms);
+    control?.setWaker(done);
+    signal?.addEventListener('abort', done, { once: true });
   });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -165,6 +202,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export async function runWatcher(p: PipelineContext, o: WatchOptions): Promise<number> {
   const now = o.now ?? Date.now;
   const runOptions: RunOptions = { signal: o.signal, ...(o.run ? { steps: o.run } : {}) };
+  const queue = o.queue ?? new JobQueue();
   let processed = 0;
 
   // 1. Reprise des contenus coupés en route (arrêt propre ou fermeture brutale)
@@ -177,7 +215,7 @@ export async function runWatcher(p: PipelineContext, o: WatchOptions): Promise<n
     if (o.signal?.aborted) break;
     try {
       p.log(`reprise automatique de ${c.id} (${c.status})`);
-      await resumeContent(p, c.id, runOptions);
+      await queue.run(`reprise de ${c.id}`, () => resumeContent(p, c.id, runOptions));
       processed++;
     } catch (err) {
       if (err instanceof InterruptedError) break;
@@ -205,6 +243,7 @@ export async function runWatcher(p: PipelineContext, o: WatchOptions): Promise<n
     if (o.signal?.aborted) break;
     await diskCheck();
     const folders = scanInbox(p);
+    if (o.control) o.control.lastScan = { at: new Date(now()).toISOString(), folders };
     // Signale une fois les dossiers qui arrivent (la période de calme commence)
     const fresh = folders.filter((f) => !announced.has(f.dir));
     for (const f of fresh) {
@@ -214,12 +253,15 @@ export async function runWatcher(p: PipelineContext, o: WatchOptions): Promise<n
     }
     announced = new Set(folders.map((f) => f.dir));
 
-    for (const f of tracker.ready(folders)) {
+    const ready = o.control?.takeForced() ? tracker.readyNow(folders) : tracker.ready(folders);
+    for (const f of ready) {
       if (o.signal?.aborted) break;
       tracker.forget(f.dir);
       p.log(`▶▶ traitement de ${f.dir}`);
       try {
-        const state = await runContent(p, { accountSlug: f.account, inputDir: f.dir }, runOptions);
+        const state = await queue.run(`traitement de ${path.basename(f.dir)}`, () =>
+          runContent(p, { accountSlug: f.account, inputDir: f.dir }, runOptions),
+        );
         writeProcessedMarker(f.dir, { contentId: state.contentId, status: 'ready' });
         processed++;
       } catch (err) {
@@ -254,7 +296,7 @@ export async function runWatcher(p: PipelineContext, o: WatchOptions): Promise<n
       }
     }
     if (o.once) break;
-    await sleep(o.intervalMs, o.signal);
+    await sleep(o.intervalMs, o.signal, o.control);
   }
   return processed;
 }
