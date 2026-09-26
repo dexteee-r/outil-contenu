@@ -150,8 +150,7 @@ versionnées : 11 musiques (`music/`), 31 sons (`sfx/hit|riser|whoosh|pop/`), 6 
   (`Burbank Big Cd Bd`, pas `Burbank Big Condensed` — sinon police de secours).
   Aperçu : `pnpm -C spikes fonts tcg`.
 - **Quota Gemini gratuit : 20 requêtes par jour et par modèle** (`gemini-3.7-flash` compris, celui
-  du dérushage). Le classement des musiques l'a épuisé pour la journée (tentatives répétées sur des
-  503) ; le reste est passé par `gemini-3.5-flash` / `3.6-flash`, qui ont chacun leur quota. À
+  du dérushage). Le classement des musiques l'a épuisé pour la journée (tentatives répétées sur des 503) ; le reste est passé par `gemini-3.5-flash` / `3.6-flash`, qui ont chacun leur quota. À
   surveiller dès qu'il y aura plusieurs vidéos par jour.
 
 Run réel `tcg-2026-08-05-be3f` : musique « TheFatRat — Xenogenesis » (reveal), sons hit, riser,
