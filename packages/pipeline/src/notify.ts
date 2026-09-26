@@ -2,12 +2,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { retry, type PipelineStep } from '@outil/core';
 import type { PipelineContext } from './context.js';
+import {
+  diskMessage,
+  failedMessage,
+  postDiscord,
+  previewJpeg,
+  readyMessage,
+  type DiscordFetch,
+} from './discord.js';
 import type { PipelineState } from './state.js';
 
 /**
- * Notifications : le worker POSTe un JSON à deux webhooks n8n (« prêt », « échec »), n8n route
- * vers Discord. L'aperçu (miniature 16:9) part en base64 : le message doit rester lisible depuis
- * le téléphone même quand le PC est éteint.
+ * Notifications « prêt » et « échec » : directement sur Discord (DISCORD_WEBHOOK_URL, miniature en
+ * pièce jointe) et/ou en JSON vers des webhooks n8n. Le message doit rester lisible depuis le
+ * téléphone même quand le PC est éteint.
  */
 
 export interface ReadyPayload {
@@ -87,42 +95,96 @@ export async function postWebhook(
   );
 }
 
+export interface NotifyTransport {
+  /** POST JSON (n8n) */
+  fetchJson?: FetchLike | undefined;
+  /** POST multipart (Discord) */
+  fetchDiscord?: DiscordFetch | undefined;
+}
+
+const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/**
+ * Alerte « prêt » vers Discord et/ou n8n, selon ce qui est configuré. Une panne d'envoi est
+ * journalisée mais ne fait pas échouer le contenu : la vidéo est livrée, c'est l'essentiel.
+ */
 export async function notifyReady(
   p: PipelineContext,
   state: PipelineState,
-  fetchImpl?: FetchLike,
+  transport: NotifyTransport = {},
 ): Promise<void> {
-  const url = p.ctx.env.N8N_WEBHOOK_READY_URL;
+  const { DISCORD_WEBHOOK_URL: discord, N8N_WEBHOOK_READY_URL: n8n } = p.ctx.env;
   const payload = buildReadyPayload(state);
-  if (!url) {
-    p.log(
-      `notify : N8N_WEBHOOK_READY_URL non défini — pas d'alerte (contenu prêt : ${payload.readyDir})`,
-    );
+  if (!discord && !n8n) {
+    p.log(`notify : aucun webhook configuré — pas d'alerte (contenu prêt : ${payload.readyDir})`);
     return;
   }
-  await postWebhook(url, payload, fetchImpl);
-  p.log(`notify : alerte « prêt » envoyée (${payload.files.length} fichiers)`);
+  if (discord) {
+    try {
+      const preview = payload.previewBase64
+        ? await previewJpeg(Buffer.from(payload.previewBase64, 'base64'))
+        : null;
+      await postDiscord(discord, readyMessage(payload, preview), transport.fetchDiscord);
+      p.log('notify : message « prêt » envoyé sur Discord');
+    } catch (err) {
+      p.log(
+        `notify : Discord injoignable (${errorText(err)}) — contenu prêt : ${payload.readyDir}`,
+      );
+    }
+  }
+  if (n8n) {
+    try {
+      await postWebhook(n8n, payload, transport.fetchJson);
+      p.log(`notify : alerte « prêt » envoyée à n8n (${payload.files.length} fichiers)`);
+    } catch (err) {
+      p.log(`notify : n8n injoignable (${errorText(err)})`);
+    }
+  }
+}
+
+/** Alerte « disque presque plein » (Discord seulement) ; ne lève jamais. */
+export async function notifyDisk(
+  p: PipelineContext,
+  disk: { freeGb: number; totalGb: number },
+  transport: NotifyTransport = {},
+): Promise<void> {
+  const url = p.ctx.env.DISCORD_WEBHOOK_URL;
+  p.log(`disque : moins de ${p.ctx.env.DISK_ALERT_FREE_GB} Go libres`);
+  if (!url) return;
+  try {
+    await postDiscord(url, diskMessage(disk, p.ctx.paths.root), transport.fetchDiscord);
+  } catch (err) {
+    p.log(`notify : impossible d'envoyer l'alerte disque (${errorText(err)})`);
+  }
 }
 
 /** Alerte d'échec : ne lève jamais (une panne du webhook ne doit pas masquer l'erreur d'origine). */
 export async function notifyFailed(
   p: PipelineContext,
   payload: FailedPayload,
-  fetchImpl?: FetchLike,
+  transport: NotifyTransport = {},
 ): Promise<void> {
-  const url = p.ctx.env.N8N_WEBHOOK_FAILED_URL;
-  if (!url) {
+  const { DISCORD_WEBHOOK_URL: discord, N8N_WEBHOOK_FAILED_URL: n8n } = p.ctx.env;
+  if (!discord && !n8n) {
     p.log(
-      `notify : N8N_WEBHOOK_FAILED_URL non défini — échec non relayé (${payload.step} : ${payload.error})`,
+      `notify : aucun webhook configuré — échec non relayé (${payload.step} : ${payload.error})`,
     );
     return;
   }
-  try {
-    await postWebhook(url, payload, fetchImpl);
-    p.log('notify : alerte « échec » envoyée');
-  } catch (err) {
-    p.log(
-      `notify : impossible d'envoyer l'alerte d'échec (${err instanceof Error ? err.message : String(err)})`,
-    );
+  if (discord) {
+    try {
+      await postDiscord(discord, failedMessage(payload), transport.fetchDiscord);
+      p.log('notify : message « échec » envoyé sur Discord');
+    } catch (err) {
+      p.log(`notify : impossible d'envoyer l'échec sur Discord (${errorText(err)})`);
+    }
+  }
+  if (n8n) {
+    try {
+      await postWebhook(n8n, payload, transport.fetchJson);
+      p.log('notify : alerte « échec » envoyée à n8n');
+    } catch (err) {
+      p.log(`notify : impossible d'envoyer l'alerte d'échec à n8n (${errorText(err)})`);
+    }
   }
 }

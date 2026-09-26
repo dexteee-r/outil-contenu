@@ -24,8 +24,16 @@ export const envSchema = z.object({
   MODEL_CAPTIONS: z.preprocess(emptyToUndefined, z.string().default('claude-sonnet-5')),
   MODEL_JUDGE: z.preprocess(emptyToUndefined, z.string().default('claude-sonnet-5')),
 
+  /** Webhook Discord : messages « prêt » (miniature en pièce jointe) et « échec » */
+  DISCORD_WEBHOOK_URL: optionalUrl,
+  /** Alternative : webhooks n8n qui reçoivent le JSON brut et routent eux-mêmes */
   N8N_WEBHOOK_READY_URL: optionalUrl,
   N8N_WEBHOOK_FAILED_URL: optionalUrl,
+
+  /** Surveillance de /raw : minutes sans changement avant de traiter un dossier */
+  WATCH_QUIET_MINUTES: z.coerce.number().positive().default(2),
+  /** Alerte quand l'espace libre du disque des données passe sous ce seuil (Go) */
+  DISK_ALERT_FREE_GB: z.coerce.number().positive().default(50),
 
   USD_EUR_RATE: z.coerce.number().positive().default(0.92),
 });

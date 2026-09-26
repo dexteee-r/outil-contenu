@@ -52,6 +52,16 @@ export const DEFAULT_STEPS: Record<Exclude<PipelineStep, 'ingest'>, StepFn> = {
 export interface RunOptions {
   /** Étapes de remplacement (tests) */
   steps?: Partial<Record<Exclude<PipelineStep, 'ingest'>, StepFn>>;
+  /** Arrêt propre demandé : l'étape en cours se termine, les suivantes attendent la reprise */
+  signal?: AbortSignal | undefined;
+}
+
+/** Levée quand un arrêt propre interrompt un contenu entre deux étapes (il sera repris). */
+export class InterruptedError extends Error {
+  constructor(public readonly contentId: string) {
+    super(`${contentId} interrompu — repris au prochain lancement`);
+    this.name = 'InterruptedError';
+  }
 }
 
 /**
@@ -69,6 +79,21 @@ export async function runSteps(
   const steps = { ...DEFAULT_STEPS, ...options.steps };
   for (const step of PIPELINE_ORDER) {
     if (step === 'ingest' || isStepDone(state, step)) continue;
+    if (options.signal?.aborted) {
+      const at = new Date().toISOString();
+      p.db
+        .update(jobs)
+        .set({ status: 'interrupted', currentStep: null, finishedAt: at })
+        .where(eq(jobs.id, jobId))
+        .run();
+      p.db
+        .update(contents)
+        .set({ status: 'interrupted', updatedAt: at })
+        .where(eq(contents.id, state.contentId))
+        .run();
+      p.log(`⏸ ${state.contentId} interrompu avant « ${step} » — repris au prochain lancement`);
+      throw new InterruptedError(state.contentId);
+    }
     const started = performance.now();
     const row = p.db.insert(jobSteps).values({ jobId, step, status: 'running' }).returning().get();
     p.db.update(jobs).set({ currentStep: step }).where(eq(jobs.id, jobId)).run();

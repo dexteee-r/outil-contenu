@@ -3,9 +3,12 @@ import { desc } from 'drizzle-orm';
 import { closeDb, contents, jobs, jobSteps, openDb } from '@outil/core';
 import {
   createPipelineContext,
+  locateState,
+  notifyReady,
   regenerateThumbnails,
   resumeContent,
   runContent,
+  runWatcher,
   startFeedback,
 } from '@outil/pipeline';
 import { createContext } from './context.js';
@@ -13,7 +16,7 @@ import { createContext } from './context.js';
 const stamp = () => new Date().toISOString().slice(11, 19);
 const log = (m: string) => console.log(`[${stamp()}] ${m}`);
 
-/** `pipeline run|resume|feedback|thumbnail|list` : le pipeline en ligne de commande. */
+/** `pipeline run|resume|feedback|thumbnail|watch|notify|list` : le pipeline en ligne de commande. */
 export function registerPipelineCommands(program: Command): void {
   const pipeline = program.command('pipeline').description('Exécution du pipeline sur un contenu');
 
@@ -92,6 +95,71 @@ export function registerPipelineCommands(program: Command): void {
       try {
         const state = await regenerateThumbnails(createPipelineContext(ctx, db, log), contentId);
         console.log(`\nMiniatures dans : ${state.deliveredDir}`);
+      } catch (err) {
+        console.error(`\nÉchec : ${err instanceof Error ? err.message : String(err)}`);
+        process.exitCode = 1;
+      } finally {
+        closeDb(db);
+      }
+    });
+
+  pipeline
+    .command('watch')
+    .description(
+      'Surveille /raw : traite seul chaque dossier de rushs déposé, reprend ce qui a été interrompu',
+    )
+    .option('--once', 'un seul passage (reprises + dossiers présents, sans attendre), puis fin')
+    .option('--quiet <minutes>', 'minutes sans changement avant de traiter un dossier')
+    .option('--interval <secondes>', 'secondes entre deux balayages', '15')
+    .action(async (opts: { once?: boolean; quiet?: string; interval: string }) => {
+      const ctx = createContext();
+      const db = openDb({ file: ctx.paths.db });
+      const controller = new AbortController();
+      let forceTimer: NodeJS.Timeout | undefined;
+      const stop = (signal: string) => {
+        if (controller.signal.aborted) {
+          log(`${signal} : arrêt immédiat (le contenu en cours sera repris au prochain lancement)`);
+          process.exit(130);
+        }
+        log(
+          `${signal} : arrêt propre — l'étape en cours se termine (Ctrl+C encore pour arrêter tout de suite)`,
+        );
+        controller.abort();
+        // Garde-fou : au-delà de 5 min, on sort quand même ; l'état est sauvé à chaque étape
+        forceTimer = setTimeout(() => process.exit(0), 5 * 60_000);
+        forceTimer.unref();
+      };
+      for (const s of ['SIGINT', 'SIGTERM', 'SIGBREAK', 'SIGHUP'] as const) {
+        process.on(s, () => stop(s));
+      }
+      const quietMin = opts.quiet !== undefined ? Number(opts.quiet) : ctx.env.WATCH_QUIET_MINUTES;
+      log(
+        `surveillance de ${ctx.paths.raw()} — un dossier est traité après ${quietMin} min sans changement`,
+      );
+      try {
+        const n = await runWatcher(createPipelineContext(ctx, db, log), {
+          quietMs: quietMin * 60_000,
+          intervalMs: Number(opts.interval) * 1000,
+          signal: controller.signal,
+          once: opts.once,
+        });
+        log(`surveillance arrêtée (${n} contenu(s) traité(s))`);
+      } finally {
+        clearTimeout(forceTimer);
+        closeDb(db);
+      }
+    });
+
+  pipeline
+    .command('notify')
+    .description('Renvoie le message « prêt » (Discord / n8n) d’un contenu livré')
+    .argument('<contentId>', 'identifiant du contenu')
+    .action(async (contentId: string) => {
+      const ctx = createContext();
+      const db = openDb({ file: ctx.paths.db });
+      try {
+        const p = createPipelineContext(ctx, db, log);
+        await notifyReady(p, locateState(p, contentId));
       } catch (err) {
         console.error(`\nÉchec : ${err instanceof Error ? err.message : String(err)}`);
         process.exitCode = 1;
