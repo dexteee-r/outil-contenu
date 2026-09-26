@@ -1,9 +1,31 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { eq } from 'drizzle-orm';
-import { contents, METADATA_FILENAME, metadataSchema, type Metadata } from '@outil/core';
+import {
+  contents,
+  METADATA_FILENAME,
+  metadataSchema,
+  type Captions,
+  type Metadata,
+} from '@outil/core';
 import type { PipelineContext } from '../context.js';
 import { saveState, type PipelineState } from '../state.js';
+
+/**
+ * Légendes livrées : le crédit de la musique (exigé par certaines licences) est ajouté à la fin de
+ * chaque description. Fait à la livraison pour toujours correspondre à la musique réellement rendue.
+ */
+export function captionsWithCredit(captions: Captions, credit: string | undefined): Captions {
+  if (!credit) return captions;
+  return Object.fromEntries(
+    Object.entries(captions).map(([platform, c]) => [
+      platform,
+      c.description.includes(credit)
+        ? c
+        : { ...c, description: `${c.description.trimEnd()}\n\n${credit}` },
+    ]),
+  );
+}
 
 /** Construit metadata.json à partir de l'état (pur, testable). */
 export function buildMetadata(
@@ -32,7 +54,7 @@ export function buildMetadata(
       height: state.render.height,
     },
     thumbnails: files.thumbnails,
-    captions: state.captions,
+    captions: captionsWithCredit(state.captions, state.music?.credit),
     // Le montage est fait à partir de vraies images ; seule la miniature peut être générée
     aiDisclosure: { video: false, images: aiImages, providers: [...providers] },
     sourceFiles: state.sourceFiles,

@@ -50,7 +50,13 @@ export const pipelineStateSchema = z
     edl: edlSchema.optional(),
     edlAttempts: z.number().int().optional(),
     music: z
-      .object({ file: z.string(), title: z.string(), license: z.string() })
+      .object({
+        file: z.string(),
+        title: z.string(),
+        license: z.string(),
+        /** Crédit exigé par la licence, ajouté aux descriptions à la livraison */
+        credit: z.string().optional(),
+      })
       .strict()
       .nullable()
       .optional(),

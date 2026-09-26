@@ -30,7 +30,12 @@ export async function render(p: PipelineContext, state: PipelineState): Promise<
     minDurationSec: edlDurationSec(edl),
   });
   if (track) {
-    state.music = { file: path.join(dir, track.file), title: track.title, license: track.license };
+    state.music = {
+      file: path.join(dir, track.file),
+      title: track.title,
+      license: track.license,
+      ...(track.credit ? { credit: track.credit } : {}),
+    };
     p.log(`render : musique « ${track.title} » (${track.bpm} bpm)`);
   } else {
     state.music = null;

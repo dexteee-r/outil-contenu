@@ -20,7 +20,7 @@ import { buildReadyPayload, postWebhook } from '../notify.js';
 import { saveState, type PipelineState } from '../state.js';
 import { makeTestContext, writeTestAccount } from '../test-helpers.js';
 import { buildEdlRequest, edl, taggingForPrompt } from './edl.js';
-import { buildMetadata } from './deliver.js';
+import { buildMetadata, captionsWithCredit } from './deliver.js';
 import { checkOutputs } from './qc.js';
 import {
   buildBackgroundPrompt,
@@ -359,6 +359,23 @@ describe('deliver.buildMetadata / notify', () => {
       providers: ['gemini', 'anthropic', 'kie'],
     });
     expect(meta.sourceFiles).toEqual(['part 1.MOV']);
+    expect(meta.captions['youtube-shorts']!.description).toBe('d'); // pas de crédit sans musique
+
+    const credited = buildMetadata(
+      {
+        ...state,
+        music: { file: 'x.mp3', title: 'X', license: 'avec crédit', credit: 'Musique : X' },
+      },
+      { video: 'video.mp4', thumbnails: [] },
+    );
+    expect(credited.captions['youtube-shorts']!.description).toBe('d\n\nMusique : X');
+    expect(state.captions!['youtube-shorts']!.description).toBe('d'); // l'état n'est pas modifié
+  });
+
+  it('n’ajoute pas deux fois le crédit s’il est déjà dans la description', () => {
+    const c = { tiktok: { title: 't', description: 'Super !\n\nMusique : X', hashtags: [] } };
+    expect(captionsWithCredit(c, 'Musique : X')).toEqual(c);
+    expect(captionsWithCredit(c, undefined)).toBe(c);
   });
 
   it('construit la charge utile « prêt » avec l’aperçu 16:9 et poste au webhook', async () => {
