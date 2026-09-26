@@ -6,6 +6,15 @@ import type { PipelineContext } from './context.js';
 import { loadState, saveState, type PipelineState } from './state.js';
 import { thumbnail } from './steps/thumbnail.js';
 
+/** Clips d'un contenu livré, repointés vers les rushs d'origine (les copies de /processing ont disparu). */
+export function clipsFromRaw(state: PipelineState): NonNullable<PipelineState['clips']> {
+  return (state.clips ?? []).map((c) => {
+    const raw = path.join(state.sourceDir, path.basename(c.path));
+    if (!fs.existsSync(raw)) throw new Error(`rush d'origine introuvable : ${raw}`);
+    return { ...c, path: raw };
+  });
+}
+
 /**
  * Regénère les miniatures d'un contenu déjà livré (après un changement de gabarit ou de style),
  * sans refaire dérushage, montage ni rendu. Les copies de /processing ayant disparu à la
@@ -22,11 +31,7 @@ export async function regenerateThumbnails(
   if (!state.deliveredDir) throw new Error(`${contentId} n'est pas encore livré`);
   const account = loadAccount(state.account, p.ctx.accountsDir);
 
-  state.clips = (state.clips ?? []).map((c) => {
-    const raw = path.join(state.sourceDir, path.basename(c.path));
-    if (!fs.existsSync(raw)) throw new Error(`rush d'origine introuvable : ${raw}`);
-    return { ...c, path: raw };
-  });
+  state.clips = clipsFromRaw(state);
   const previous = state.thumbnails ?? [];
 
   await thumbnail(p, state, account);

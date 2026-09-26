@@ -11,7 +11,7 @@ import {
   type TaggingResult,
 } from '@outil/core';
 import type { PipelineContext } from '../context.js';
-import type { PipelineState } from '../state.js';
+import { currentFeedback, type PipelineState } from '../state.js';
 
 export const EDL_MAX_ATTEMPTS = 3;
 
@@ -51,8 +51,28 @@ export function buildEdlRequest(account: LoadedAccount, tagging: TaggingResult):
 }
 
 /**
+ * Relance sur feedback : la version livrée est rejouée comme réponse du modèle, suivie du retour
+ * de Markus — le modèle corrige sa propre copie au lieu de repartir de zéro.
+ */
+export function feedbackTurns(previous: unknown, request: string): AnthropicMessage[] {
+  return [
+    { role: 'assistant', content: JSON.stringify(previous) },
+    { role: 'user', content: request },
+  ];
+}
+
+export function edlFeedbackRequest(text: string): string {
+  return [
+    `Retour de Markus sur la vidéo montée à partir de cet EDL : « ${text} »`,
+    '',
+    'Produis un nouvel EDL complet qui applique ce retour. Garde tout ce que le retour ne remet pas en cause (clips, rythme, cadrages, effets) ; ne change que ce qui est demandé.',
+  ].join('\n');
+}
+
+/**
  * EDL par Claude, contraint par `edlSchema`, puis passé au validateur ; les problèmes sont renvoyés
- * au modèle avec sa réponse précédente, jusqu'à EDL_MAX_ATTEMPTS.
+ * au modèle avec sa réponse précédente, jusqu'à EDL_MAX_ATTEMPTS. Sur une relance avec feedback
+ * vidéo, l'EDL livré et le retour sont ajoutés à la conversation.
  */
 export async function edl(
   p: PipelineContext,
@@ -67,6 +87,11 @@ export async function edl(
   const messages: AnthropicMessage[] = [
     { role: 'user', content: buildEdlRequest(account, tagging) },
   ];
+  const fb = currentFeedback(state, 'video');
+  if (fb && state.edl) {
+    messages.push(...feedbackTurns(state.edl, edlFeedbackRequest(fb.text)));
+    p.log(`edl : relance avec le retour « ${fb.text} »`);
+  }
   const meta = {
     module: 'edl' as const,
     provider: 'anthropic' as const,

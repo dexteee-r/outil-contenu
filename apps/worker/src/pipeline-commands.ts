@@ -6,13 +6,14 @@ import {
   regenerateThumbnails,
   resumeContent,
   runContent,
+  startFeedback,
 } from '@outil/pipeline';
 import { createContext } from './context.js';
 
 const stamp = () => new Date().toISOString().slice(11, 19);
 const log = (m: string) => console.log(`[${stamp()}] ${m}`);
 
-/** `pipeline run|resume|thumbnail|list` : le walking skeleton en ligne de commande (étape 3). */
+/** `pipeline run|resume|feedback|thumbnail|list` : le pipeline en ligne de commande. */
 export function registerPipelineCommands(program: Command): void {
   const pipeline = program.command('pipeline').description('Exécution du pipeline sur un contenu');
 
@@ -48,6 +49,31 @@ export function registerPipelineCommands(program: Command): void {
       try {
         const state = await resumeContent(createPipelineContext(ctx, db, log), contentId);
         console.log(`\nLivré dans : ${state.deliveredDir}`);
+      } catch (err) {
+        console.error(`\nÉchec : ${err instanceof Error ? err.message : String(err)}`);
+        process.exitCode = 1;
+      } finally {
+        closeDb(db);
+      }
+    });
+
+  pipeline
+    .command('feedback')
+    .description(
+      'Relance un contenu livré avec ton retour : nouveau montage (défaut) ou nouvelle miniature (--miniature)',
+    )
+    .argument('<contentId>', 'identifiant du contenu, ex. tcg-2026-08-05-a3f9')
+    .argument('<retour...>', 'ton retour en texte libre, ex. "coupe plus tôt, garde la réaction"')
+    .option('--miniature', 'le retour porte sur la miniature (texte, produit, carte)')
+    .action(async (contentId: string, words: string[], opts: { miniature?: boolean }) => {
+      const ctx = createContext();
+      const db = openDb({ file: ctx.paths.db });
+      try {
+        const state = await startFeedback(createPipelineContext(ctx, db, log), contentId, {
+          target: opts.miniature ? 'thumbnail' : 'video',
+          text: words.join(' '),
+        });
+        console.log(`\nVersion ${state.revision ?? 1} livrée dans : ${state.deliveredDir}`);
       } catch (err) {
         console.error(`\nÉchec : ${err instanceof Error ? err.message : String(err)}`);
         process.exitCode = 1;

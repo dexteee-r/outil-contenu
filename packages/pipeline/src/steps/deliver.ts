@@ -23,7 +23,7 @@ export function buildMetadata(
     schemaVersion: 1,
     contentId: state.contentId,
     account: state.account,
-    version: 1,
+    version: state.revision ?? 1,
     createdAt: new Date().toISOString(),
     video: {
       path: files.video,
@@ -41,12 +41,34 @@ export function buildMetadata(
 }
 
 /**
+ * Version déjà livrée dans `readyDir` (relance sur feedback) : ses fichiers partent dans
+ * `v<n>/`, pour que le dossier montre toujours la dernière version et garde l'historique.
+ */
+export function archivePreviousVersion(readyDir: string): number | null {
+  const metaFile = path.join(readyDir, METADATA_FILENAME);
+  if (!fs.existsSync(metaFile)) return null;
+  const { version } = JSON.parse(fs.readFileSync(metaFile, 'utf8')) as { version: number };
+  const dest = path.join(readyDir, `v${version}`);
+  fs.mkdirSync(dest, { recursive: true });
+  const files = fs
+    .readdirSync(readyDir)
+    .filter((n) => n === METADATA_FILENAME || /^video\.mp4$|^thumb-.*\.png$/.test(n));
+  for (const name of files) fs.renameSync(path.join(readyDir, name), path.join(dest, name));
+  const edlFile = path.join(readyDir, 'work', 'edl.json');
+  if (fs.existsSync(edlFile)) fs.copyFileSync(edlFile, path.join(dest, 'edl.json'));
+  return version;
+}
+
+/**
  * Livraison : déplace vidéo et miniatures dans /ready/<compte>/<content-id>/, écrit metadata.json,
  * archive les fichiers de travail (tagging, EDL, état) dans work/, supprime /processing/<id>.
+ * Une version précédente est d'abord rangée dans `v<n>/`.
  */
 export function deliver(p: PipelineContext, state: PipelineState): void {
   if (!state.render) throw new Error('deliver : rendu manquant');
   const readyDir = p.ctx.paths.ready(state.account, state.contentId);
+  const archived = archivePreviousVersion(readyDir);
+  if (archived) p.log(`deliver : version ${archived} rangée dans v${archived}/`);
   fs.mkdirSync(path.join(readyDir, 'work'), { recursive: true });
 
   const videoName = 'video.mp4';
@@ -83,7 +105,7 @@ export function deliver(p: PipelineContext, state: PipelineState): void {
 
   p.db
     .update(contents)
-    .set({ status: 'ready', updatedAt: new Date().toISOString() })
+    .set({ status: 'ready', version: state.revision ?? 1, updatedAt: new Date().toISOString() })
     .where(eq(contents.id, state.contentId))
     .run();
   p.log(`deliver : ${readyDir}`);

@@ -4,6 +4,7 @@ import {
   captionsSchema,
   clipInfoSchema,
   edlSchema,
+  FEEDBACK_TARGETS,
   PIPELINE_STEPS,
   taggingResultSchema,
   THUMBNAIL_FORMATS,
@@ -20,6 +21,16 @@ export const STATE_FILE = 'state.json';
 
 /** Étapes exécutées par le runner, dans l'ordre (l'ingestion crée l'état, les autres l'enrichissent). */
 export const PIPELINE_ORDER: readonly PipelineStep[] = PIPELINE_STEPS;
+
+export const feedbackEntrySchema = z
+  .object({
+    target: z.enum(FEEDBACK_TARGETS),
+    text: z.string().min(1),
+    at: z.iso.datetime(),
+    revision: z.number().int().positive(),
+  })
+  .strict();
+export type FeedbackEntry = z.infer<typeof feedbackEntrySchema>;
 
 export const pipelineStateSchema = z
   .object({
@@ -88,9 +99,24 @@ export const pipelineStateSchema = z
       .strict()
       .optional(),
     deliveredDir: z.string().optional(),
+    /** Version du livrable : 1 au premier passage, +1 à chaque relance sur feedback */
+    revision: z.number().int().positive().optional(),
+    /** Retours de Markus, du plus ancien au plus récent ; `revision` = version qu'ils ont produite */
+    feedback: z.array(feedbackEntrySchema).optional(),
   })
   .strict();
 export type PipelineState = z.infer<typeof pipelineStateSchema>;
+
+/** Le retour qui a déclenché la version en cours, s'il porte sur `target`. */
+export function currentFeedback(
+  state: PipelineState,
+  target: FeedbackEntry['target'],
+): FeedbackEntry | undefined {
+  const last = state.feedback?.at(-1);
+  return last && last.target === target && last.revision === (state.revision ?? 1)
+    ? last
+    : undefined;
+}
 
 export function statePath(workDir: string): string {
   return path.join(workDir, STATE_FILE);

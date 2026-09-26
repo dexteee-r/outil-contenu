@@ -3,11 +3,12 @@ import {
   captionsOutputSchemaFor,
   loadPrompt,
   splitCaptionsOutput,
+  type AnthropicMessage,
   type LoadedAccount,
 } from '@outil/core';
 import type { PipelineContext } from '../context.js';
-import { taggingForPrompt } from './edl.js';
-import type { PipelineState } from '../state.js';
+import { feedbackTurns, taggingForPrompt } from './edl.js';
+import { currentFeedback, type PipelineState } from '../state.js';
 
 /** System prompt : règles génériques + instructions du compte (migrées depuis le Claude Project). */
 export function buildCaptionsSystem(p: PipelineContext, account: LoadedAccount): string {
@@ -18,6 +19,14 @@ export function buildCaptionsSystem(p: PipelineContext, account: LoadedAccount):
   return own
     ? `${generic}\n\n## Instructions du compte ${account.config.displayName}\n\n${own}`
     : generic;
+}
+
+export function thumbnailFeedbackRequest(text: string): string {
+  return [
+    `Retour de Markus sur la miniature produite à partir de ces choix : « ${text} »`,
+    '',
+    'Renvoie la sortie complète. Adapte `thumbnailTitle`, `thumbnailSubject` et `thumbnailHit` pour appliquer ce retour ; recopie les légendes des plateformes à l’identique sauf si le retour les concerne.',
+  ].join('\n');
 }
 
 /** Légendes par plateforme + titre de miniature, par Claude, contraints par le schéma du compte. */
@@ -41,11 +50,24 @@ export async function captions(
     .filter(Boolean)
     .join('\n\n');
 
+  const messages: AnthropicMessage[] = [{ role: 'user', content: user }];
+  const fb = currentFeedback(state, 'thumbnail');
+  if (fb && state.captions && state.thumbnailSubject) {
+    const previous = {
+      ...state.captions,
+      thumbnailTitle: state.thumbnailTitle,
+      thumbnailSubject: state.thumbnailSubject,
+      thumbnailHit: state.thumbnailHit ?? null,
+    };
+    messages.push(...feedbackTurns(previous, thumbnailFeedbackRequest(fb.text)));
+    p.log(`captions : relance avec le retour miniature « ${fb.text} »`);
+  }
+
   const { data } = await p.anthropic().generateStructured({
     model,
     schema,
     system: buildCaptionsSystem(p, account),
-    messages: [{ role: 'user', content: user }],
+    messages,
     meta: {
       module: 'captions',
       provider: 'anthropic',

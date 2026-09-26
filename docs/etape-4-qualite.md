@@ -105,3 +105,27 @@ Changements :
   la première version ; `linear()` s'applique avant `ensureAlpha()` dans un même pipeline.
 
 Coût de la miniature : **0,01 $** (deux détourages), 4 images (2 formats × 2 variantes).
+
+## Boucle de feedback — 2026-09-26
+
+```bash
+pnpm content feedback <id> "coupe plus tôt, garde la réaction"
+pnpm content feedback <id> --miniature "mets le nom du set dans l'étiquette"
+```
+
+- Relance un contenu **livré** (statut `ready`) en version n+1 (`packages/pipeline/src/feedback.ts`).
+  Seules les étapes concernées sont refaites : retour vidéo → `edl`, `render` ; retour miniature →
+  `captions` (Claude revoit texte, produit et carte), `thumbnail` ; puis `qc`, `deliver`, `notify`.
+  Le reste (dérushage, légendes ou vidéo) est repris tel quel.
+- Claude reçoit sa version livrée **comme sa propre réponse**, suivie du retour, avec la consigne de
+  ne changer que ce qui est demandé : il corrige sa copie au lieu de repartir de zéro.
+- Livraison : la version précédente (vidéo, miniatures, `metadata.json`, EDL) est rangée dans
+  `v<n>/` ; le dossier du contenu montre toujours la dernière version. `metadata.version`,
+  `contents.version`, un job `feedback` et une ligne `feedback` (liée au job) sont enregistrés ; les
+  retours sont aussi gardés dans `state.feedback`.
+- Rushs relus depuis `/raw` (les copies de `/processing` disparaissent à la livraison).
+- Limite : un retour miniature agit sur les **choix** (texte, instants) ; la mise en page du style
+  `duo` (tailles, positions) se règle dans le code, pas par feedback.
+
+Test réel sur `tcg-2026-08-05-b4ff` : « l'intro floutée est trop longue, arrive plus vite au
+booster » → teaser de 1,0 s à 0,6 s, les 5 autres segments identiques, rendu en 35 s, v1 dans `v1/`.
