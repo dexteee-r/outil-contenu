@@ -163,6 +163,11 @@ export async function thumbnail(
     account.files.logo && fs.existsSync(account.files.logo)
       ? fs.readFileSync(account.files.logo)
       : undefined;
+  // Police de marque en fichier (brand/fonts/) ; sinon police système
+  const fontFile =
+    account.files.fontTitle && fs.existsSync(account.files.fontTitle)
+      ? account.files.fontTitle
+      : undefined;
 
   // 1. Sujet : celui choisi par Claude à l'étape captions (produit, carte, visage…), sinon le climax
   const subject = state.thumbnailSubject;
@@ -224,6 +229,7 @@ export async function thumbnail(
           title,
           tease,
           logo,
+          fontFile,
         });
         const file = path.join(state.workDir, `thumb-${format}-v${i + 1}.png`);
         fs.writeFileSync(file, composed.png);

@@ -86,6 +86,22 @@ export async function probeVideo(file: string): Promise<ProbeResult> {
   return parseProbe(JSON.parse(stdout));
 }
 
+/** Durée en secondes d'un fichier audio ou vidéo. */
+export async function probeDurationSec(file: string): Promise<number> {
+  const { stdout } = await execFileAsync('ffprobe', [
+    '-v',
+    'error',
+    '-show_entries',
+    'format=duration',
+    '-of',
+    'csv=p=0',
+    file,
+  ]);
+  const duration = Number.parseFloat(stdout.trim());
+  if (!Number.isFinite(duration) || duration <= 0) throw new Error(`durée illisible : ${file}`);
+  return duration;
+}
+
 /** Identifiant de clip stable à partir du nom de fichier : "IMG_0042.MOV" → "img-0042". */
 export function clipIdFromFile(file: string, index: number): string {
   const base = path

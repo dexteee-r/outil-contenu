@@ -14,6 +14,7 @@
     "cutout": "tsx cutout-test.ts",
     "poster": "tsx poster-preview.ts",
     "duo": "tsx duo-preview.ts",
+    "fonts": "tsx fonts-preview.ts",
     "upload": "tsx upload-test.ts"
   },
   "dependencies": {

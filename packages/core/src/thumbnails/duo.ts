@@ -2,6 +2,7 @@ import sharp, { type OverlayOptions } from 'sharp';
 import type { AccountConfig } from '../config/account.js';
 import { THUMBNAIL_SIZES, type ThumbnailFormat } from '../schemas/metadata.js';
 import { escapeXml } from './compose.js';
+import { renderTextWithFont } from './fonts.js';
 import { resolveColor, type ThumbnailTemplate } from './template.js';
 
 /**
@@ -475,47 +476,72 @@ function vignetteSvg(width: number, height: number): string {
 </svg>`;
 }
 
-/** Largeur réelle d'un texte rendu (mesurée, pas estimée : la police varie d'un poste à l'autre). */
-export async function measureText(text: string, fontFamily: string, fontPx: number) {
-  const w = Math.ceil(fontPx * (text.length + 2));
-  const h = Math.ceil(fontPx * 1.8);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><text x="${fontPx / 2}" y="${fontPx * 1.3}" font-family='${fontFamily}' font-weight="900" font-size="${fontPx}" fill="#fff">${escapeXml(text)}</text></svg>`;
-  const { info } = await sharp(Buffer.from(svg)).trim().raw().toBuffer({ resolveWithObject: true });
-  return info.width;
+/**
+ * Texte en PNG transparent rogné au plus près des lettres : police de marque (fichier) si le compte
+ * en déclare une, sinon police système via SVG. La largeur est donc mesurée, jamais estimée.
+ */
+export async function renderLabelText(
+  text: string,
+  sizePx: number,
+  color: string,
+  fontFile?: string,
+): Promise<{ png: Buffer; width: number; height: number }> {
+  if (fontFile) return renderTextWithFont(text, fontFile, sizePx, color);
+  const w = Math.ceil(sizePx * (text.length + 2));
+  const h = Math.ceil(sizePx * 1.8);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><text x="${sizePx / 2}" y="${sizePx * 1.3}" font-family='${LABEL_FONT}' font-weight="900" font-size="${sizePx}" fill="${color}">${escapeXml(text)}</text></svg>`;
+  const { data, info } = await sharp(Buffer.from(svg))
+    .trim()
+    .png()
+    .toBuffer({ resolveWithObject: true });
+  return { png: data, width: info.width, height: info.height };
 }
 
-/** Étiquette : texte court dans un bloc plein incliné, avec ombre. */
-async function labelSvg(
+/** Étiquette : texte court dans un bloc plein incliné, avec ombre ; police réduite si trop large. */
+async function labelImage(
   width: number,
   height: number,
   text: string,
   box: DuoLayout['label'],
   fill: string,
   color: string,
-): Promise<string> {
+  fontFile: string | undefined,
+): Promise<Pick<Sticker, 'png' | 'width' | 'height'>> {
   const maxFont = box.fontSize * height;
   const maxW = box.maxWidth * width;
   let font = maxFont;
-  let textW = await measureText(text, LABEL_FONT, font);
-  while (textW + font * 0.84 > maxW && font > maxFont * 0.45) {
+  let t = await renderLabelText(text, font, color, fontFile);
+  while (t.width + font * 0.84 > maxW && font > maxFont * 0.45) {
     font = Math.floor(font * 0.92);
-    textW = await measureText(text, LABEL_FONT, font);
+    t = await renderLabelText(text, font, color, fontFile);
   }
-  const boxW = textW + font * 0.84;
-  const boxH = font * 1.3;
-  const cx = box.cx * width;
-  const cy = box.cy * height;
-  const x = cx - boxW / 2;
-  const y = cy - boxH / 2;
-  const off = font * 0.09;
-  const rx = font * 0.2;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-  <g transform="rotate(${box.tiltDeg} ${cx.toFixed(1)} ${cy.toFixed(1)})">
-    <rect x="${(x + off).toFixed(1)}" y="${(y + off).toFixed(1)}" width="${boxW.toFixed(1)}" height="${boxH.toFixed(1)}" rx="${rx.toFixed(1)}" fill="#000" opacity="0.5"/>
-    <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${boxW.toFixed(1)}" height="${boxH.toFixed(1)}" rx="${rx.toFixed(1)}" fill="${fill}" stroke="#000" stroke-opacity="0.85" stroke-width="${(font * 0.05).toFixed(1)}"/>
-    <text x="${cx.toFixed(1)}" y="${(cy + font * 0.36).toFixed(1)}" text-anchor="middle" font-family='${LABEL_FONT}' font-weight="900" font-size="${font.toFixed(1)}" fill="${color}">${escapeXml(text)}</text>
-  </g>
+  const boxW = Math.round(t.width + font * 0.84);
+  const boxH = Math.round(Math.max(font * 1.3, t.height + font * 0.5));
+  const off = Math.round(font * 0.09);
+  const m = Math.ceil(font * 0.05);
+  const rx = (font * 0.2).toFixed(1);
+  const canvasW = boxW + off + m * 2;
+  const canvasH = boxH + off + m * 2;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}">
+  <rect x="${m + off}" y="${m + off}" width="${boxW}" height="${boxH}" rx="${rx}" fill="#000" opacity="0.5"/>
+  <rect x="${m}" y="${m}" width="${boxW}" height="${boxH}" rx="${rx}" fill="${fill}" stroke="#000" stroke-opacity="0.85" stroke-width="${(font * 0.05).toFixed(1)}"/>
 </svg>`;
+  const composed = await sharp(Buffer.from(svg))
+    .composite([
+      {
+        input: t.png,
+        left: Math.round(m + (boxW - t.width) / 2),
+        top: Math.round(m + (boxH - t.height) / 2),
+      },
+    ])
+    .png()
+    .toBuffer();
+  const png = await sharp(composed)
+    .rotate(box.tiltDeg, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+  const meta = await sharp(png).metadata();
+  return { png, width: meta.width ?? canvasW, height: meta.height ?? canvasH };
 }
 
 /** Flèche courbe blanche cernée de noir, de `from` vers `to` en pixels (courbure `bend`, signe = côté). */
@@ -553,11 +579,15 @@ export function arrowSvg(
 </svg>`;
 }
 
-/** Gros « ? » posé sur la carte floutée de la variante teaser. */
-function questionSvg(width: number, height: number, cx: number, cy: number, size: number): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-  <text x="${cx.toFixed(1)}" y="${(cy + size * 0.36).toFixed(1)}" text-anchor="middle" font-family='${LABEL_FONT}' font-weight="900" font-size="${size.toFixed(1)}" fill="#fff" stroke="#000" stroke-width="${(size * 0.06).toFixed(1)}" paint-order="stroke" stroke-linejoin="round">?</text>
-</svg>`;
+/** Gros « ? » blanc cerné de noir, posé sur la carte floutée de la variante teaser. */
+async function questionMark(size: number, fontFile: string | undefined): Promise<Sticker> {
+  const t = await renderLabelText('?', size, '#ffffff', fontFile);
+  return prepareSticker(t.png, {
+    heightPx: t.height,
+    maxWidthPx: t.width * 2,
+    tiltDeg: 0,
+    outline: { color: '#000000', widthPx: size * 0.05 },
+  });
 }
 
 export interface ComposeDuoOptions {
@@ -572,6 +602,8 @@ export interface ComposeDuoOptions {
   /** Variante teaser : la carte est floutée et marquée d'un « ? » */
   tease?: boolean | undefined;
   logo?: Buffer | undefined;
+  /** Police de marque (fichier .ttf/.otf) pour l'étiquette et le « ? » ; sinon police système */
+  fontFile?: string | undefined;
 }
 
 export async function composeDuoThumbnail(
@@ -641,11 +673,8 @@ export async function composeDuoThumbnail(
       const x1 = Math.min(width, cardAt.cx + card.contentWidth / 2);
       const y0 = Math.max(0, cardAt.cy - card.contentHeight / 2);
       const y1 = Math.min(height, cardAt.cy + card.contentHeight / 2);
-      layers.push({
-        input: Buffer.from(
-          questionSvg(width, height, (x0 + x1) / 2, (y0 + y1) / 2, card.contentHeight * 0.45),
-        ),
-      });
+      const q = await questionMark(card.contentHeight * 0.45, o.fontFile);
+      push(await placeCentered(q, (x0 + x1) / 2, (y0 + y1) / 2, width, height));
     }
     if (o.template.duo.arrow) {
       const a = layout.arrow;
@@ -666,9 +695,18 @@ export async function composeDuoThumbnail(
   if (text.trim()) {
     const fill = resolveColor(o.template.duo.label.fill, o.brand);
     const color = resolveColor(o.template.duo.label.text, o.brand);
-    layers.push({
-      input: Buffer.from(await labelSvg(width, height, text.trim(), layout.label, fill, color)),
-    });
+    const label = await labelImage(
+      width,
+      height,
+      text.trim(),
+      layout.label,
+      fill,
+      color,
+      o.fontFile,
+    );
+    push(
+      await placeCentered(label, layout.label.cx * width, layout.label.cy * height, width, height),
+    );
   }
 
   if (o.logo) {

@@ -129,3 +129,30 @@ pnpm content feedback <id> --miniature "mets le nom du set dans l'étiquette"
 
 Test réel sur `tcg-2026-08-05-b4ff` : « l'intro floutée est trop longue, arrive plus vite au
 booster » → teaser de 1,0 s à 0,6 s, les 5 autres segments identiques, rendu en 35 s, v1 dans `v1/`.
+
+## Musiques, sons et police de marque — 2026-09-26
+
+Ressources copiées depuis la bibliothèque de Markus (`F:\1 - MONTAGES PHOTO ET Vidéo`), jamais
+versionnées : 11 musiques (`music/`), 31 sons (`sfx/hit|riser|whoosh|pop/`), 6 polices
+(`accounts/tcg/brand/fonts/`).
+
+- **Musiques** : ambiances classées en faisant écouter 45 s de chaque piste à Gemini (hype 4,
+  tension 4, reveal 3, calm 7). One Piece OST est marquée `restricted` (Content ID) : choisie
+  seulement si aucune piste libre ne convient. TheFatRat et Silverman Sound ont un `credit`.
+- **Habillage sonore automatique** (`buildSfxCues`, sans rien demander à l'EDL) : son de hit joué
+  en entier (il était coupé à 0,8 s avec l'effet visuel), montée de tension qui finit pile sur le
+  hit, whoosh aux changements de plan (pas près du hit, pas pendant la montée, 0,6 s d'écart
+  minimum), pop à l'apparition d'un texte. Index `sfx.json` étendu à `riser`, `whoosh`, `pop`.
+  Volumes : hit 0,75 (0,9 donnait un pic à -0,2 dBFS avec la musique), montée 0,45, whoosh 0,35.
+- **Police de marque** : `brand.fonts.title` pointe un fichier (`brand/fonts/Montserrat-Black.ttf`).
+  Le moteur SVG de Sharp ne voit que les polices installées : l'étiquette et le « ? » sont rendus
+  par Pango avec `fontfile`, sous le nom de famille **court** lu dans la table `name` du fichier
+  (`Burbank Big Cd Bd`, pas `Burbank Big Condensed` — sinon police de secours).
+  Aperçu : `pnpm -C spikes fonts tcg`.
+- **Quota Gemini gratuit : 20 requêtes par jour et par modèle** (`gemini-3.7-flash` compris, celui
+  du dérushage). Le classement des musiques l'a épuisé pour la journée (tentatives répétées sur des
+  503) ; le reste est passé par `gemini-3.5-flash` / `3.6-flash`, qui ont chacun leur quota. À
+  surveiller dès qu'il y aura plusieurs vidéos par jour.
+
+Run réel `tcg-2026-08-05-be3f` : musique « TheFatRat — Xenogenesis » (reveal), sons hit, riser,
+whoosh, pop, étiquette en Montserrat Black.

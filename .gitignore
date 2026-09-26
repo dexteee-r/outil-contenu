@@ -37,3 +37,7 @@ sfx/*
 # Miniatures d inspiration : oeuvres d autres créateurs, jamais dans le dépôt public
 accounts/*/inspiration/*
 !accounts/*/inspiration/README.md
+
+# Polices de marque : licences variées (certaines non redistribuables), jamais dans le dépôt public
+accounts/*/brand/fonts/*
+!accounts/*/brand/fonts/README.md

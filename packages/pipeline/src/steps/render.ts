@@ -2,13 +2,17 @@ import path from 'node:path';
 import fs from 'node:fs';
 import {
   edlDurationSec,
-  hitSfxPath,
   loadMusicIndex,
+  loadSfxIndex,
   makeSyntheticHitSfx,
   musicDir,
+  probeDurationSec,
   probeVideo,
   selectTrack,
+  SFX_KINDS,
   sfxDir,
+  sfxPathFor,
+  type SfxKindName,
 } from '@outil/core';
 import { renderEdl } from '@outil/video';
 import type { PipelineContext } from '../context.js';
@@ -33,16 +37,21 @@ export async function render(p: PipelineContext, state: PipelineState): Promise<
     p.log(`render : aucune piste « ${edl.music.mood} » dans music/music.json — rendu sans musique`);
   }
 
-  // Son des effets « hit » : bibliothèque sfx/, sinon substitution synthétique mise en cache
-  let hitSfx: string | null = null;
-  if (edl.effects.some((e) => e.type === 'hit')) {
-    hitSfx = hitSfxPath(sfxDir(p.ctx.repoRoot));
-    if (!hitSfx) {
-      hitSfx = path.join(p.ctx.paths.root, 'cache', 'sfx-hit-placeholder.mp3');
-      if (!fs.existsSync(hitSfx)) await makeSyntheticHitSfx(hitSfx);
+  // Habillage sonore : bibliothèque sfx/ ; pour le « hit », substitution synthétique si absent
+  const library = sfxDir(p.ctx.repoRoot);
+  const index = loadSfxIndex(library);
+  const sfx: Partial<Record<SfxKindName, { path: string; durationSec: number }>> = {};
+  for (const kind of SFX_KINDS) {
+    let file = sfxPathFor(library, kind, index);
+    if (!file && kind === 'hit' && edl.effects.some((e) => e.type === 'hit')) {
+      file = path.join(p.ctx.paths.root, 'cache', 'sfx-hit-placeholder.mp3');
+      if (!fs.existsSync(file)) await makeSyntheticHitSfx(file);
       p.log('render : pas de son « hit » dans sfx/sfx.json — son de substitution');
     }
+    if (file) sfx[kind] = { path: file, durationSec: await probeDurationSec(file) };
   }
+  const declared = Object.keys(sfx);
+  if (declared.length) p.log(`render : sons ${declared.join(', ')}`);
 
   const out = path.join(state.workDir, 'video.mp4');
   let last = -20;
@@ -51,7 +60,7 @@ export async function render(p: PipelineContext, state: PipelineState): Promise<
     clips,
     out,
     music: state.music ? { path: state.music.file } : null,
-    sfx: { hit: hitSfx },
+    sfx,
     onProgress: (percent) => {
       if (percent >= last + 20) {
         last = percent;

@@ -1,1 +1,18 @@
-{}
+{
+  "hit": {
+    "file": "hit/Obtain 001.mp3",
+    "license": "Bibliothèque de Markus (SFX/HUD) — source à confirmer"
+  },
+  "riser": {
+    "file": "riser/Long Riser.mp3",
+    "license": "Bibliothèque de Markus (SFX/1. Transitions/Riser) — source à confirmer"
+  },
+  "whoosh": {
+    "file": "whoosh/Short Whoosh (1).wav",
+    "license": "Bibliothèque de Markus (SFX/01 - Transitions) — source à confirmer"
+  },
+  "pop": {
+    "file": "pop/Sharp Pop.mp3",
+    "license": "Bibliothèque de Markus (SFX/2. Appearances/Pop) — source à confirmer"
+  }
+}

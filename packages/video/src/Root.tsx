@@ -14,7 +14,7 @@ const emptyProps: EditProps = {
     overlays: [],
     effects: [],
     music: null,
-    sfx: { hit: null },
+    sfx: [],
   },
 };
 

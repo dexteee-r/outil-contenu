@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { loadMusicIndex, musicIndexSchema, selectTrack, type MusicIndex } from './index.js';
-import { hitSfxPath, loadSfxIndex } from './sfx.js';
+import { hitSfxPath, loadSfxIndex, sfxIndexSchema, sfxPathFor } from './sfx.js';
 
 const index: MusicIndex = {
   tracks: [
@@ -56,6 +56,29 @@ describe('selectTrack', () => {
     ).toBeNull();
   });
 
+  it('préfère une piste libre à une piste protégée, qui reste un dernier recours', () => {
+    const op = {
+      file: 'op.mp3',
+      title: 'OST',
+      moods: ['reveal'],
+      bpm: 138,
+      durationSec: 280,
+      license: 'Protégée',
+      restricted: true,
+    };
+    const free = {
+      file: 'free.mp3',
+      title: 'F',
+      moods: ['reveal'],
+      bpm: 150,
+      durationSec: 120,
+      license: 'Pixabay',
+    };
+    const req = { mood: 'reveal', tempoRange: { min: 130, max: 140 }, minDurationSec: 20 };
+    expect(selectTrack({ tracks: [op, free] }, req)?.file).toBe('free.mp3'); // malgré le tempo
+    expect(selectTrack({ tracks: [op] }, req)?.file).toBe('op.mp3');
+  });
+
   it('ignore la casse du mood', () => {
     expect(
       selectTrack(index, { mood: 'CALM', tempoRange: { min: 60, max: 80 }, minDurationSec: 10 })
@@ -99,5 +122,18 @@ describe('sfx', () => {
     expect(hitSfxPath(dir)).toBeNull(); // déclaré mais absent
     fs.writeFileSync(path.join(dir, 'h.mp3'), 'x');
     expect(hitSfxPath(dir)).toBe(path.join(dir, 'h.mp3'));
+  });
+
+  it('résout les quatre types de sons ; refuse un type inconnu', () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'outil-sfx-'));
+    fs.mkdirSync(path.join(dir, 'riser'));
+    fs.writeFileSync(path.join(dir, 'riser', 'r.mp3'), 'x');
+    fs.writeFileSync(
+      path.join(dir, 'sfx.json'),
+      JSON.stringify({ riser: { file: 'riser/r.mp3', license: 'CC0' } }),
+    );
+    expect(sfxPathFor(dir, 'riser')).toBe(path.join(dir, 'riser', 'r.mp3'));
+    expect(sfxPathFor(dir, 'whoosh')).toBeNull();
+    expect(sfxIndexSchema.safeParse({ boom: { file: 'b.mp3', license: 'x' } }).success).toBe(false);
   });
 });

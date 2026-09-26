@@ -1,3 +1,103 @@
 {
-  "tracks": []
+  "tracks": [
+    {
+      "file": "sigmamusicart-no-copyright-music-537751.mp3",
+      "title": "Future bass énergique avec drop (sigmamusicart)",
+      "moods": ["hype", "reveal"],
+      "bpm": 150,
+      "durationSec": 123,
+      "license": "Pixabay Content License",
+      "source": "https://pixabay.com/music/ (id 537751)"
+    },
+    {
+      "file": "TheFatRat - Xenogenesis (Outro Song).mp3",
+      "title": "TheFatRat — Xenogenesis",
+      "moods": ["hype", "reveal"],
+      "bpm": 146,
+      "durationSec": 234,
+      "license": "Usage autorisé sur YouTube avec crédit (TheFatRat)",
+      "credit": "Musique : TheFatRat — Xenogenesis"
+    },
+    {
+      "file": "One Piece OST Overtaken  EPIC VERSION (Drums of Liberation).mp3",
+      "title": "One Piece OST — Overtaken (Drums of Liberation)",
+      "moods": ["hype", "reveal"],
+      "bpm": 138,
+      "durationSec": 280,
+      "license": "Protégée (Toei Animation) — risque de revendication Content ID sur YouTube",
+      "restricted": true
+    },
+    {
+      "file": "tunetank-melodic-type-beat-349530.mp3",
+      "title": "Trap sombre et atmosphérique (tunetank)",
+      "moods": ["hype", "tension"],
+      "bpm": 141,
+      "durationSec": 118,
+      "license": "Pixabay Content License",
+      "source": "https://pixabay.com/music/ (id 349530)"
+    },
+    {
+      "file": "arpmedia-timelapse-music-569446.mp3",
+      "title": "Groove électro sombre et hypnotique (arpmedia)",
+      "moods": ["tension", "calm"],
+      "bpm": 105,
+      "durationSec": 122,
+      "license": "Pixabay Content License",
+      "source": "https://pixabay.com/music/ (id 569446)"
+    },
+    {
+      "file": "saavane-timelapse-late-night-drive-background-music-138500.mp3",
+      "title": "Beat hip-hop sombre, late night drive (saavane)",
+      "moods": ["tension", "calm"],
+      "bpm": 82,
+      "durationSec": 225,
+      "license": "Pixabay Content License",
+      "source": "https://pixabay.com/music/ (id 138500)"
+    },
+    {
+      "file": "Silverman Sound Studios - All The Tea In China.mp3",
+      "title": "Silverman Sound Studios — All The Tea In China",
+      "moods": ["tension", "calm"],
+      "bpm": 70,
+      "durationSec": 160,
+      "license": "CC BY 4.0 (crédit requis)",
+      "credit": "Musique : Silverman Sound Studios — All The Tea In China"
+    },
+    {
+      "file": "mondamusic-timelapse-music-560120.mp3",
+      "title": "Groove percussif organique (mondamusic)",
+      "moods": ["calm"],
+      "bpm": 120,
+      "durationSec": 111,
+      "license": "Pixabay Content License",
+      "source": "https://pixabay.com/music/ (id 560120)"
+    },
+    {
+      "file": "mondamusic-asian-491695.mp3",
+      "title": "Mélodie asiatique aérienne (mondamusic)",
+      "moods": ["calm"],
+      "bpm": 90,
+      "durationSec": 141,
+      "license": "Pixabay Content License",
+      "source": "https://pixabay.com/music/ (id 491695)"
+    },
+    {
+      "file": "good-night-lofi-cozy-chill-music-160166.mp3",
+      "title": "Lo-fi cosy (good night)",
+      "moods": ["calm"],
+      "bpm": 85,
+      "durationSec": 147,
+      "license": "Pixabay Content License",
+      "source": "https://pixabay.com/music/ (id 160166)"
+    },
+    {
+      "file": "pour jet ski   melodigne-ski-resort-chill-453911.mp3",
+      "title": "Lo-fi détendu, ski resort chill (melodigne)",
+      "moods": ["calm"],
+      "bpm": 89,
+      "durationSec": 237,
+      "license": "Pixabay Content License",
+      "source": "https://pixabay.com/music/ (id 453911)"
+    }
+  ]
 }

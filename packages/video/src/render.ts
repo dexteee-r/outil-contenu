@@ -6,10 +6,10 @@ import { ensureBrowser, renderMedia, selectComposition } from '@remotion/rendere
 import type { ClipInfo, Edl } from '@outil/core';
 import { COMPOSITION_ID } from './Root';
 import { startMediaServer } from './serve';
-import { buildTimeline, DEFAULT_FPS, type Timeline } from './timeline';
+import { buildTimeline, DEFAULT_FPS, type SfxKind, type Timeline } from './timeline';
 
-export { buildTimeline, musicVolumeAt } from './timeline';
-export type { Timeline } from './timeline';
+export { buildTimeline, buildSfxCues, musicVolumeAt } from './timeline';
+export type { SfxCue, SfxKind, Timeline } from './timeline';
 export { startMediaServer } from './serve';
 
 const ENTRY_POINT = fileURLToPath(new URL('./index.ts', import.meta.url));
@@ -37,8 +37,8 @@ export interface RenderEdlOptions {
   /** Fichier MP4 de sortie */
   out: string;
   music?: { path: string; volume?: number } | null;
-  /** Sons des effets (fichiers locaux) */
-  sfx?: { hit?: string | null };
+  /** Sons d'habillage (fichiers locaux + durée) : hit, montée de tension, whoosh, pop */
+  sfx?: Partial<Record<SfxKind, { path: string; durationSec: number } | null>>;
   fps?: number;
   /** Bundle déjà construit (sinon bundle à la volée) */
   serveUrl?: string;
@@ -69,7 +69,12 @@ export async function renderEdl(o: RenderEdlOptions): Promise<RenderEdlResult> {
       music: musicSrc
         ? { src: musicSrc, ...(o.music?.volume !== undefined ? { volume: o.music.volume } : {}) }
         : null,
-      sfx: { hit: o.sfx?.hit ? media.mount(o.sfx.hit) : null },
+      sfx: Object.fromEntries(
+        Object.entries(o.sfx ?? {}).map(([kind, s]) => [
+          kind,
+          s ? { src: media.mount(s.path), durationSec: s.durationSec } : null,
+        ]),
+      ),
     };
     const timeline = buildTimeline(timelineOptions);
     const inputProps = { timeline };

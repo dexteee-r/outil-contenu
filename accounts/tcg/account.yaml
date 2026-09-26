@@ -12,7 +12,10 @@ brand:
     background: '#0F0F1A'
     text: '#FFFFFF'
   fonts:
-    title: Impact # nom de police installée, ou chemin vers un .ttf dans brand/fonts/
+    # Police de l'étiquette des miniatures : nom de police installée, ou fichier de brand/fonts/
+    # (disponibles : Montserrat-Black.ttf, Montserrat-ExtraBold.ttf, Anton-Regular.ttf,
+    # Poppins-Black.ttf, Poppins-ExtraBold.ttf, BurbankBigCondensed-Bold.otf)
+    title: brand/fonts/Montserrat-Black.ttf
     body: Arial
 
 # Gabarit des miniatures (étape 5) et prompt de légendes (migré depuis le Claude Project)

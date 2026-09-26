@@ -94,10 +94,15 @@ export const Edit: React.FC<EditProps> = ({ timeline }) => {
           </Sequence>
         ))}
       </AbsoluteFill>
-      <HitEffects effects={timeline.effects} sfx={timeline.sfx.hit} width={width} height={height} />
+      <HitEffects effects={timeline.effects} width={width} height={height} />
       {timeline.overlays.map((o, i) => (
         <Sequence key={`o${i}`} from={o.from} durationInFrames={o.durationInFrames}>
           <Overlay overlay={o} />
+        </Sequence>
+      ))}
+      {timeline.sfx.map((c, i) => (
+        <Sequence key={`sfx${i}`} from={c.from} durationInFrames={c.durationInFrames}>
+          <Audio src={c.src} startFrom={c.startFromFrame} volume={c.volume} />
         </Sequence>
       ))}
       {timeline.music ? (

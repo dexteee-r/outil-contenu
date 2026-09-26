@@ -18,6 +18,10 @@ export const musicTrackSchema = z
     /** Licence et source, pour pouvoir prouver le droit d'usage */
     license: z.string().min(1),
     source: z.string().optional(),
+    /** Piste protégée (risque Content ID) : choisie seulement si aucune piste libre ne convient */
+    restricted: z.boolean().optional(),
+    /** Crédit à mettre en description quand la licence l'exige */
+    credit: z.string().optional(),
   })
   .strict();
 export type MusicTrack = z.infer<typeof musicTrackSchema>;
@@ -46,8 +50,9 @@ export interface MusicRequest {
 }
 
 /**
- * Meilleure piste pour la demande : mood exact requis ; tempo dans la plage (sinon pénalité selon
- * l'écart) ; durée suffisante requise. Renvoie null si aucune piste ne convient.
+ * Meilleure piste pour la demande : mood exact requis ; durée suffisante requise ; les pistes
+ * libres passent avant les pistes protégées (`restricted`) ; puis tempo dans la plage (sinon
+ * pénalité selon l'écart). Renvoie null si aucune piste ne convient.
  */
 export function selectTrack(index: MusicIndex, req: MusicRequest): MusicTrack | null {
   const mood = req.mood.toLowerCase();
@@ -59,5 +64,6 @@ export function selectTrack(index: MusicIndex, req: MusicRequest): MusicTrack | 
     if (t.bpm >= req.tempoRange.min && t.bpm <= req.tempoRange.max) return 0;
     return Math.min(Math.abs(t.bpm - req.tempoRange.min), Math.abs(t.bpm - req.tempoRange.max));
   };
-  return candidates.slice().sort((a, b) => distance(a) - distance(b))[0]!;
+  const rank = (t: MusicTrack) => (t.restricted ? 1000 : 0) + distance(t);
+  return candidates.slice().sort((a, b) => rank(a) - rank(b))[0]!;
 }

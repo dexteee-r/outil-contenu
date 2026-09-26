@@ -27,9 +27,23 @@ export interface TimelineEffect {
   at: number;
 }
 
-export interface TimelineSfx {
-  /** Son joué sur les effets  (null = muet) */
-  hit: string | null;
+/** Sons de la bibliothèque sfx/ disponibles pour le rendu (URL servie + durée du fichier). */
+export interface SfxSource {
+  src: string;
+  durationSec: number;
+}
+export type SfxKind = 'hit' | 'riser' | 'whoosh' | 'pop';
+export type SfxSources = Partial<Record<SfxKind, SfxSource | null>>;
+
+/** Un son placé sur la timeline de sortie. */
+export interface SfxCue {
+  kind: SfxKind;
+  src: string;
+  from: number;
+  durationInFrames: number;
+  /** Frames sautées au début du fichier (montée de tension raccourcie) */
+  startFromFrame: number;
+  volume: number;
 }
 
 export interface TimelineOverlay {
@@ -55,7 +69,7 @@ export interface Timeline {
   overlays: TimelineOverlay[];
   effects: TimelineEffect[];
   music: TimelineMusic | null;
-  sfx: TimelineSfx;
+  sfx: SfxCue[];
 }
 
 export const DEFAULT_FPS = 30;
@@ -69,7 +83,7 @@ export interface BuildTimelineOptions {
   /** Comment le navigateur de rendu atteint un clip (URL http locale, staticFile…) */
   srcFor: (clip: ClipInfo) => string;
   music?: { src: string; volume?: number } | null;
-  sfx?: Partial<TimelineSfx>;
+  sfx?: SfxSources;
   fps?: number;
 }
 
@@ -125,8 +139,76 @@ export function buildTimeline(o: BuildTimelineOptions): Timeline {
     overlays,
     effects,
     music,
-    sfx: { hit: o.sfx?.hit ?? null },
+    sfx: buildSfxCues({ segments, overlays, effects, durationInFrames, fps, sources: o.sfx ?? {} }),
   };
+}
+
+/**
+ * Habillage sonore automatique, sans rien demander à l'EDL :
+ * - hit : à chaque effet « hit », joué en entier (3 s max) ;
+ * - riser : montée de tension qui se termine pile sur le hit (début du fichier sauté si la place manque) ;
+ * - whoosh : à chaque changement de plan, un peu avant la coupe — sauf près d'un hit (il a son
+ *   propre son), pendant une montée de tension, ou moins de 0,6 s après le whoosh précédent ;
+ * - pop : à l'apparition de chaque texte.
+ */
+export function buildSfxCues(o: {
+  segments: TimelineSegment[];
+  overlays: TimelineOverlay[];
+  effects: TimelineEffect[];
+  durationInFrames: number;
+  fps: number;
+  sources: SfxSources;
+}): SfxCue[] {
+  const { fps, sources } = o;
+  const cues: SfxCue[] = [];
+  const add = (kind: SfxKind, from: number, maxSec: number, volume: number, startFromFrame = 0) => {
+    const s = sources[kind];
+    if (!s) return;
+    const start = Math.max(0, from);
+    const length = Math.min(
+      toFrames(Math.min(s.durationSec, maxSec), fps) - startFromFrame,
+      o.durationInFrames - start,
+    );
+    if (length > 0)
+      cues.push({
+        kind,
+        src: s.src,
+        from: start,
+        durationInFrames: length,
+        startFromFrame,
+        volume,
+      });
+  };
+
+  const hits = o.effects.filter((e) => e.type === 'hit').map((e) => e.at);
+  const riserWindows: [number, number][] = [];
+  for (const at of hits) {
+    add('hit', at, 3, 0.75); // 0,9 saturait presque avec la musique (pic à -0,2 dBFS)
+    const riser = sources.riser;
+    if (riser) {
+      const full = toFrames(riser.durationSec, fps);
+      const len = Math.min(full, at);
+      if (len >= toFrames(0.5, fps)) {
+        add('riser', at - len, riser.durationSec, 0.45, full - len);
+        riserWindows.push([at - len, at]);
+      }
+    }
+  }
+
+  const lead = toFrames(0.15, fps);
+  const minGap = toFrames(0.6, fps);
+  let lastWhoosh = -Infinity;
+  for (const seg of o.segments.slice(1)) {
+    const cut = seg.from;
+    if (hits.some((at) => Math.abs(cut - at) < toFrames(0.4, fps))) continue;
+    if (riserWindows.some(([a, b]) => cut >= a && cut <= b)) continue;
+    if (cut - lastWhoosh < minGap) continue;
+    add('whoosh', cut - lead, 1.2, 0.35);
+    lastWhoosh = cut;
+  }
+
+  for (const ov of o.overlays) add('pop', ov.from, 1, 0.5);
+  return cues.sort((a, b) => a.from - b.from);
 }
 
 /** Volume de la musique à une frame donnée (fondu de sortie linéaire). */

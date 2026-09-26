@@ -1,10 +1,10 @@
 import React from 'react';
-import { AbsoluteFill, Audio, Sequence, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Sequence, useCurrentFrame } from 'remotion';
 import { flashOpacityAt, HIT_EFFECT_FRAMES, type TimelineEffect } from './timeline';
 
 /**
- * Effet « hit » : flash blanc, étincelles qui partent du centre, son court.
- * Le coup de zoom est appliqué par la composition sur la couche vidéo (punchScaleAt).
+ * Effet « hit » : flash blanc, étincelles qui partent du centre. Le coup de zoom est appliqué par
+ * la composition sur la couche vidéo (punchScaleAt) ; le son est un repère de `timeline.sfx`.
  */
 
 const SPARK_COUNT = 18;
@@ -49,11 +49,10 @@ const Sparks: React.FC<{ width: number; height: number; color: string }> = ({
 
 export const HitEffects: React.FC<{
   effects: TimelineEffect[];
-  sfx: string | null;
   width: number;
   height: number;
   color?: string;
-}> = ({ effects, sfx, width, height, color = '#FFCC00' }) => {
+}> = ({ effects, width, height, color = '#FFCC00' }) => {
   const frame = useCurrentFrame();
   const flash = flashOpacityAt(frame, effects);
   return (
@@ -65,7 +64,6 @@ export const HitEffects: React.FC<{
             <AbsoluteFill style={{ pointerEvents: 'none' }}>
               <Sparks width={width} height={height} color={color} />
             </AbsoluteFill>
-            {sfx ? <Audio src={sfx} volume={0.9} /> : null}
           </Sequence>
         ))}
       {flash > 0 ? <AbsoluteFill style={{ backgroundColor: '#fff', opacity: flash }} /> : null}
