@@ -143,6 +143,15 @@ export function registerAppCommand(program: Command): void {
           if (n.kind === 'ready') {
             lastFailure = null;
             tray?.toast({ title: 'Contenu prêt', text: `${n.title}\n${n.contentId}` });
+          } else if (n.kind === 'budget') {
+            const cap = n.mode === 'cap';
+            tray?.toast({
+              title: cap ? `Plafond atteint : ${n.account}` : `Seuil dépassé : ${n.account}`,
+              text:
+                `${n.spentEur.toFixed(2)} € ce mois-ci (limite ${n.limitEur.toFixed(2)} €)` +
+                (cap ? ' — nouvelles générations suspendues.' : ''),
+              error: cap,
+            });
           } else {
             lastFailure = n.contentId;
             tray?.toast({

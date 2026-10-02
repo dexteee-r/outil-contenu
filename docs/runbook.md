@@ -33,8 +33,24 @@ Modifier `.env` à la racine du repo (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `KI
 
 ## Ajouter un compte
 
-Copier `accounts/tcg/` vers `accounts/<slug>/`, adapter `account.yaml`, les prompts et `brand/`,
-puis `pnpm config:check <slug>` et créer `raw\<slug>\`. (Étape 8 : isolation et budget.)
+Copier `accounts/dexter-labo/` (ou `tcg/`) vers `accounts/<slug>/` (minuscules, chiffres, tirets),
+adapter `account.yaml` (`contentType` : `tcg-opening`, `tech-repair`, `nature-walk` ou `generic`),
+`prompts/captions.md`, `thumbnail.json` et `brand/` (polices à recopier : non versionnées), puis
+`pnpm config:check <slug>` et créer `E:\contenu\raw\<slug>\`. Le tableau de bord le voit tout de
+suite.
+
+## Plafond budgétaire atteint
+
+Toast + message Discord « Plafond budgétaire atteint ». Le contenu en cours se termine ; les
+nouveaux dossiers attendent dans `/raw` (sans marqueur), les retours et miniatures sont refusés.
+Pour continuer ce mois-ci : relever `budget.monthlyLimitEur` dans `accounts/<slug>/account.yaml`
+(pris en compte sans relancer) ; sinon tout repart le 1er du mois. Dépenses : page **Coûts**.
+
+## Un contenu en échec repart tout seul
+
+Normal pour une panne passagère (Gemini surchargé, Claude indisponible, réseau) : nouvel essai
+30 min après, 3 échecs d'affilée au plus, puis il attend **Reprendre**. Mettre la surveillance en
+pause suspend aussi ces essais.
 
 ## L'outil ne s'arrête pas
 

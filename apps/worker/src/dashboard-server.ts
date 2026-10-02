@@ -426,6 +426,16 @@ export function createDashboardServer(o: DashboardOptions): http.Server {
           const id = decodeURIComponent(action[1]!);
           const row = contentRow(id);
           const runOptions = { signal: o.signal };
+          // Nouvelle génération (retour, miniatures) : refus immédiat si le plafond est atteint
+          if (action[2] !== 'resume') {
+            const budget = p.tracker.budgetStatus(row.account);
+            if (budget.capReached) {
+              throw new HttpError(
+                409,
+                `plafond du compte atteint (${budget.spentEur.toFixed(2)} € / ${budget.limitEur!.toFixed(2)} € ce mois-ci)`,
+              );
+            }
+          }
           if (action[2] === 'feedback') {
             const body = await readJson(req);
             const target = body.target === 'thumbnail' ? 'thumbnail' : 'video';

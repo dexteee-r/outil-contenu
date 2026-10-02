@@ -22,6 +22,15 @@ export function loadPrompt(name: string, dir: string): string {
 export const TAGGING_ADDENDUM: Record<ContentType, string | null> = {
   'tcg-opening': 'tagging-tcg-opening',
   'nature-walk': 'tagging-nature-walk',
+  'tech-repair': 'tagging-tech-repair',
+  generic: null,
+};
+
+/** Consignes de miniature et de ton par type de contenu, ajoutées au prompt des légendes. */
+export const CAPTIONS_ADDENDUM: Record<ContentType, string | null> = {
+  'tcg-opening': 'captions-tcg-opening',
+  'nature-walk': 'captions-nature-walk',
+  'tech-repair': 'captions-tech-repair',
   generic: null,
 };
 

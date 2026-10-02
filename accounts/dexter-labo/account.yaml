@@ -1,0 +1,31 @@
+# Compte dexter.labo — réparation de PC et de téléphones, montage de PC.
+# Les chemins sont relatifs à ce dossier. Couleurs provisoires : à remplacer par la charte réelle.
+slug: dexter-labo
+displayName: dexter.labo
+contentType: tech-repair
+platforms: [youtube-shorts, tiktok, instagram-reels]
+
+brand:
+  logo: brand/logo.png # à déposer
+  colors:
+    primary: '#00E5FF'
+    secondary: '#111827'
+    background: '#0B0F19'
+    text: '#FFFFFF'
+  fonts:
+    # Police de l'étiquette des miniatures (fichiers de brand/fonts/, non versionnés)
+    title: brand/fonts/Montserrat-Black.ttf
+    body: Arial
+
+# Miniature « poster » : l'appareil détouré en héros (le style « duo » produit + carte est propre au TCG)
+thumbnailTemplate: thumbnail.json
+captionPrompt: prompts/captions.md
+knowledgeFiles: []
+
+musicMoods: [hype, tension, calm]
+
+durationRange: { min: 20, max: 60 }
+subtitles: false
+
+# unlimited | threshold (alerte) | cap (plafond strict)
+budget: { mode: cap, monthlyLimitEur: 5 }

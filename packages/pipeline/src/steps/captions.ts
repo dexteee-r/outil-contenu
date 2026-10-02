@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import {
+  CAPTIONS_ADDENDUM,
   captionsOutputSchemaFor,
   loadPrompt,
   splitCaptionsOutput,
@@ -10,15 +11,19 @@ import type { PipelineContext } from '../context.js';
 import { feedbackTurns, taggingForPrompt } from './edl.js';
 import { currentFeedback, type PipelineState } from '../state.js';
 
-/** System prompt : règles génériques + instructions du compte (migrées depuis le Claude Project). */
+/**
+ * System prompt : règles génériques + consignes du type de contenu + instructions du compte
+ * (migrées depuis le Claude Project). Un compte n'hérite jamais des consignes d'un autre type.
+ */
 export function buildCaptionsSystem(p: PipelineContext, account: LoadedAccount): string {
-  const generic = loadPrompt('captions-generic', p.ctx.promptsDir);
+  const parts = [loadPrompt('captions-generic', p.ctx.promptsDir)];
+  const addendum = CAPTIONS_ADDENDUM[account.config.contentType];
+  if (addendum) parts.push(loadPrompt(addendum, p.ctx.promptsDir));
   const own = fs.existsSync(account.files.captionPrompt)
     ? fs.readFileSync(account.files.captionPrompt, 'utf8').trim()
     : '';
-  return own
-    ? `${generic}\n\n## Instructions du compte ${account.config.displayName}\n\n${own}`
-    : generic;
+  if (own) parts.push(`## Instructions du compte ${account.config.displayName}\n\n${own}`);
+  return parts.join('\n\n');
 }
 
 export function thumbnailFeedbackRequest(text: string): string {

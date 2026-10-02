@@ -3,10 +3,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
-import { closeDb, contents, jobs, makeSyntheticClip, openDb, type Db } from '@outil/core';
+import { apiCalls, closeDb, contents, jobs, makeSyntheticClip, openDb, type Db } from '@outil/core';
 import { createPipelineContext, type PipelineContext } from './context.js';
 import type { StepFn } from './runner.js';
 import {
+  autoRetryCandidates,
   InboxTracker,
   PROCESSED_MARKER,
   runWatcher,
@@ -224,6 +225,65 @@ describe('runWatcher', () => {
     expect(await runWatcher(p, opts)).toBe(1);
     expect(fs.existsSync(path.join(d, PROCESSED_MARKER))).toBe(true);
   }, 60_000);
+
+  it('plafond atteint : le dossier attend, sans marqueur ni contenu créé, une seule alerte', async () => {
+    const { p, raw, logs } = setup();
+    writeTestAccount(dir, 'tcg', { budget: { mode: 'cap', monthlyLimitEur: 0.01 } });
+    db.insert(apiCalls)
+      .values({
+        module: 'edl',
+        provider: 'anthropic',
+        model: 'x',
+        account: 'tcg',
+        costEur: 0.02,
+        durationMs: 1,
+        status: 'ok',
+      })
+      .run();
+    const d = folder(raw, '2026-10-03', { 'rush.mp4': 'x' });
+    const control = new WatchControl();
+    const opts = { quietMs: 0, intervalMs: 10, once: true, run: neutral(p), control };
+
+    expect(await runWatcher(p, opts)).toBe(0);
+    expect(fs.existsSync(path.join(d, PROCESSED_MARKER))).toBe(false);
+    expect(db.select().from(contents).all()).toEqual([]);
+    expect(logs.filter((l) => l.includes('budget tcg : plafond atteint'))).toHaveLength(1);
+    expect(logs.some((l) => l.startsWith('⛔') && l.includes('en attente'))).toBe(true);
+  });
+
+  it('nouvel essai automatique : panne passagère seulement, après 30 min, 3 échecs au plus', () => {
+    const { p } = setup();
+    const now = Date.parse('2026-10-03T12:00:00Z');
+    const ago = (min: number) => new Date(now - min * 60_000).toISOString();
+    const content = (id: string, failures: { error: string; at: string }[], done = false) => {
+      db.insert(contents)
+        .values({ id, account: 'tcg', sourceDir: `/raw/${id}`, status: 'failed' })
+        .run();
+      if (done) db.insert(jobs).values({ contentId: id, status: 'done' }).run();
+      for (const f of failures) {
+        db.insert(jobs)
+          .values({ contentId: id, status: 'failed', error: f.error, finishedAt: f.at })
+          .run();
+      }
+    };
+    const overloaded = '{"error":{"code":503,"message":"high demand","status":"UNAVAILABLE"}}';
+    content('a-surcharge', [{ error: overloaded, at: ago(45) }]);
+    content('b-trop-tot', [{ error: overloaded, at: ago(10) }]);
+    content('c-quota-jour', [{ error: 'Quota exceeded: GenerateRequestsPerDay', at: ago(90) }]);
+    content('d-contrat', [{ error: 'EDL invalide : segment hors clip', at: ago(90) }]);
+    content('e-trois-echecs', [
+      { error: overloaded, at: ago(200) },
+      { error: overloaded, at: ago(120) },
+      { error: overloaded, at: ago(60) },
+    ]);
+    // Deux échecs, mais après un succès antérieur (feedback) : le compteur repart de zéro
+    content('f-apres-succes', [{ error: overloaded, at: ago(60) }], true);
+
+    expect(autoRetryCandidates(p, now)).toEqual([
+      { contentId: 'a-surcharge', failures: 1 },
+      { contentId: 'f-apres-succes', failures: 1 },
+    ]);
+  });
 
   it('dossier illisible : marqueur « failed » et alerte, pas de boucle', async () => {
     const { p, raw, logs } = setup();

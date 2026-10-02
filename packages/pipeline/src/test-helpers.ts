@@ -40,17 +40,22 @@ export function writeTestAccount(
 ): void {
   const accountDir = path.join(dir, 'accounts', slug);
   fs.mkdirSync(path.join(accountDir, 'prompts'), { recursive: true });
-  const yaml = [
-    `slug: ${slug}`,
-    `displayName: ${slug.toUpperCase()}`,
-    'contentType: tcg-opening',
-    'platforms: [youtube-shorts, tiktok]',
-    'brand:',
-    '  colors: { primary: "#FFCC00", secondary: "#1A1A2E", background: "#0F0F1A", text: "#FFFFFF" }',
-    'musicMoods: [hype]',
-    'durationRange: { min: 15, max: 60 }',
-    ...Object.entries(overrides).map(([k, v]) => `${k}: ${JSON.stringify(v)}`),
-  ].join('\n');
+  // Une clé surchargée remplace la valeur par défaut (YAML refuse les clés en double)
+  const values: Record<string, unknown> = {
+    slug,
+    displayName: slug.toUpperCase(),
+    contentType: 'tcg-opening',
+    platforms: ['youtube-shorts', 'tiktok'],
+    brand: {
+      colors: { primary: '#FFCC00', secondary: '#1A1A2E', background: '#0F0F1A', text: '#FFFFFF' },
+    },
+    musicMoods: ['hype'],
+    durationRange: { min: 15, max: 60 },
+    ...overrides,
+  };
+  const yaml = Object.entries(values)
+    .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+    .join('\n');
   fs.writeFileSync(path.join(accountDir, 'account.yaml'), yaml);
   fs.writeFileSync(path.join(accountDir, 'prompts', 'captions.md'), 'Ton : enthousiaste.');
 }

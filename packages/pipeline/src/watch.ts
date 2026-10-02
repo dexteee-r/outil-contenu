@@ -1,12 +1,61 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { eq, inArray } from 'drizzle-orm';
-import { contents, listAccounts } from '@outil/core';
+import { desc, eq, inArray } from 'drizzle-orm';
+import {
+  BudgetExceededError,
+  contents,
+  isTransientApiError,
+  jobs,
+  listAccounts,
+} from '@outil/core';
 import type { PipelineContext } from './context.js';
 import { isVideoFile } from './ids.js';
-import { notifyDisk, notifyFailed } from './notify.js';
+import { notifyBudget, notifyDisk, notifyFailed } from './notify.js';
 import { JobQueue } from './queue.js';
 import { InterruptedError, resumeContent, runContent, type RunOptions } from './runner.js';
+
+const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/** Attente avant de retenter un contenu en échec pour une panne passagère (Gemini 503, Claude surchargé, réseau). */
+export const AUTO_RETRY_DELAY_MS = 30 * 60_000;
+/** Échecs passagers d'affilée au-delà desquels on laisse la main (« Reprendre » dans le tableau de bord). */
+export const AUTO_RETRY_MAX = 3;
+
+/**
+ * Contenus à retenter : en échec, dernière erreur passagère (pas un quota du jour, pas une erreur
+ * de contrat), moins de AUTO_RETRY_MAX échecs depuis le dernier succès, échec vieux d'au moins
+ * AUTO_RETRY_DELAY_MS.
+ */
+export function autoRetryCandidates(
+  p: PipelineContext,
+  nowMs: number,
+): { contentId: string; failures: number }[] {
+  const failed = p.db
+    .select({ id: contents.id })
+    .from(contents)
+    .where(eq(contents.status, 'failed'))
+    .all();
+  const out: { contentId: string; failures: number }[] = [];
+  for (const { id } of failed) {
+    const history = p.db
+      .select()
+      .from(jobs)
+      .where(eq(jobs.contentId, id))
+      .orderBy(desc(jobs.id))
+      .all();
+    const last = history[0];
+    if (!last || last.status !== 'failed' || !last.error || !last.finishedAt) continue;
+    if (!isTransientApiError({ message: last.error })) continue;
+    if (nowMs - Date.parse(last.finishedAt) < AUTO_RETRY_DELAY_MS) continue;
+    let failures = 0;
+    for (const j of history) {
+      if (j.status === 'done') break;
+      if (j.status === 'failed') failures++;
+    }
+    if (failures < AUTO_RETRY_MAX) out.push({ contentId: id, failures });
+  }
+  return out;
+}
 
 /**
  * Surveillance de /raw/<compte>/<dossier>/ : un dossier est traité quand son contenu n'a plus
@@ -244,9 +293,27 @@ export async function runWatcher(p: PipelineContext, o: WatchOptions): Promise<n
 
   const tracker = new InboxTracker(o.once ? 0 : o.quietMs, now);
   let announced = new Set<string>();
+  // Dossiers refusés pour cause de plafond : une seule alerte chacun
+  const budgetBlocked = new Set<string>();
   for (;;) {
     if (o.signal?.aborted) break;
     await diskCheck();
+    // Contenus en échec pour une panne passagère d'API : nouvel essai programmé
+    for (const c of o.control?.paused ? [] : autoRetryCandidates(p, now())) {
+      if (o.signal?.aborted) break;
+      p.log(
+        `↻ nouvel essai automatique de ${c.contentId} (panne passagère, essai ${c.failures + 1}/${AUTO_RETRY_MAX})`,
+      );
+      try {
+        await queue.run(`nouvel essai de ${c.contentId}`, () =>
+          resumeContent(p, c.contentId, runOptions),
+        );
+        processed++;
+      } catch (err) {
+        if (err instanceof InterruptedError) break;
+        p.log(`nouvel essai de ${c.contentId} en échec : ${errorText(err)}`);
+      }
+    }
     const folders = scanInbox(p);
     if (o.control) o.control.lastScan = { at: new Date(now()).toISOString(), folders };
     // Signale une fois les dossiers qui arrivent (la période de calme commence)
@@ -281,6 +348,20 @@ export async function runWatcher(p: PipelineContext, o: WatchOptions): Promise<n
         if (err instanceof InterruptedError) {
           writeProcessedMarker(f.dir, { contentId: err.contentId, status: 'interrupted' });
           break;
+        }
+        // Plafond atteint : pas de marqueur, le dossier attend (mois suivant ou plafond relevé)
+        if (err instanceof BudgetExceededError) {
+          if (!budgetBlocked.has(f.dir)) {
+            budgetBlocked.add(f.dir);
+            p.log(`⛔ ${f.dir} en attente : ${err.message}`);
+            await notifyBudget(p, {
+              account: err.account,
+              mode: 'cap',
+              spentEur: err.spentEur,
+              limitEur: err.limitEur,
+            });
+          }
+          continue;
         }
         // Le marqueur évite de relancer en boucle ; l'alerte d'échec est déjà partie si le contenu
         // existait (runner), sinon l'échec a eu lieu à l'ingestion et on la déclenche ici

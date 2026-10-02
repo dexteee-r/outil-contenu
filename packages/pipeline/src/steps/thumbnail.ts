@@ -65,6 +65,8 @@ export function buildBackgroundPrompt(
     'tcg-opening':
       'vibrant collector energy, card-pull excitement, fan-style original art inspired by trading-card aesthetics',
     'nature-walk': 'natural light, calm and immersive, documentary photography feel',
+    'tech-repair':
+      'clean tech workbench, macro detail on electronic components, cool LED accents, satisfying repair vibe',
     generic: 'clean modern social-media visual',
   };
   return [

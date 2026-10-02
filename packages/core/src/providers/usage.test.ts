@@ -5,7 +5,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { closeDb, openDb, type Db } from '../db/index.js';
 import { apiCalls } from '../db/schema.js';
 import { DEFAULT_PRICING, estimateCostUsd, loadPricing } from './pricing.js';
-import { spendSince, startOfMonthIso, UsageTracker } from './usage.js';
+import {
+  BudgetExceededError,
+  spendSince,
+  startOfMonthIso,
+  UsageTracker,
+  type Budget,
+  type BudgetAlert,
+} from './usage.js';
 
 describe('estimateCostUsd', () => {
   it('calcule un coût tokens et un coût image', () => {
@@ -141,5 +148,77 @@ describe('UsageTracker', () => {
     expect(spendSince(db, startOfMonthIso())).toBeCloseTo(0.105);
     expect(spendSince(db, startOfMonthIso(), { account: 'tcg' })).toBeCloseTo(0.07);
     expect(spendSince(db, new Date(Date.now() + 60_000).toISOString())).toBe(0);
+  });
+});
+
+describe('garde-fou budgétaire', () => {
+  let db: Db;
+  afterEach(() => closeDb(db));
+
+  // Une image à 0,035 $ = 0,035 € (taux 1) : 3 images franchissent un plafond de 0,10 €
+  const image = (account: string, contentId?: string) => ({
+    module: 'image' as const,
+    provider: 'gemini' as const,
+    model: 'gemini-3-pro-image',
+    account,
+    ...(contentId ? { contentId } : {}),
+  });
+
+  function setup(budgets: Record<string, Budget>) {
+    db = openDb({ file: ':memory:' });
+    const alerts: BudgetAlert[] = [];
+    let calls = 0;
+    const tracker = new UsageTracker(db, {
+      pricing: DEFAULT_PRICING,
+      usdEurRate: 1,
+      budgetOf: (a) => budgets[a],
+      onBudgetAlert: (a) => alerts.push(a),
+    });
+    const call = () => {
+      calls++;
+      return Promise.resolve({ result: null, usage: { images: 1 } });
+    };
+    return { tracker, alerts, call, calls: () => calls };
+  }
+
+  it('plafond strict : alerte au franchissement, puis refus avant tout appel', async () => {
+    const { tracker, alerts, call, calls } = setup({ tcg: { mode: 'cap', monthlyLimitEur: 0.1 } });
+    await tracker.track(image('tcg'), call);
+    await tracker.track(image('tcg'), call);
+    expect(alerts).toEqual([]);
+    await tracker.track(image('tcg'), call); // 0,105 € : plafond franchi par cet appel
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({ account: 'tcg', mode: 'cap', limitEur: 0.1 });
+    expect(alerts[0]!.spentEur).toBeCloseTo(0.105);
+
+    await expect(tracker.track(image('tcg'), call)).rejects.toBeInstanceOf(BudgetExceededError);
+    expect(calls()).toBe(3); // le fournisseur n'a pas été appelé
+    expect(() => tracker.assertBudget('tcg')).toThrow(/plafond budgétaire du compte tcg atteint/);
+    expect(tracker.budgetStatus('tcg')).toMatchObject({ capReached: true, limitEur: 0.1 });
+  });
+
+  it('un contenu admis (déjà en cours) va au bout malgré le plafond', async () => {
+    const { tracker, call } = setup({ tcg: { mode: 'cap', monthlyLimitEur: 0.05 } });
+    tracker.admit('c1');
+    await tracker.track(image('tcg', 'c1'), call);
+    await tracker.track(image('tcg', 'c1'), call); // au-delà du plafond, mais admis
+    await expect(tracker.track(image('tcg', 'c2'), call)).rejects.toBeInstanceOf(
+      BudgetExceededError,
+    );
+    tracker.release('c1');
+    await expect(tracker.track(image('tcg', 'c1'), call)).rejects.toBeInstanceOf(
+      BudgetExceededError,
+    );
+  });
+
+  it('seuil : alerte une fois sans bloquer ; plafond par compte, sans effet sur les autres', async () => {
+    const { tracker, alerts, call } = setup({
+      tcg: { mode: 'threshold', monthlyLimitEur: 0.05 },
+      dexter: { mode: 'cap', monthlyLimitEur: 0.05 },
+    });
+    for (let i = 0; i < 4; i++) await tracker.track(image('tcg'), call);
+    expect(alerts.map((a) => [a.account, a.mode])).toEqual([['tcg', 'threshold']]);
+    expect(() => tracker.assertBudget('dexter')).not.toThrow();
+    await tracker.track(image('sans-budget'), call); // illimité par défaut
   });
 });

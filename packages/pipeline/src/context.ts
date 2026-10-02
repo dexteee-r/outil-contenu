@@ -5,11 +5,13 @@ import {
   createUsageTracker,
   type AnthropicProvider,
   type AppContext,
+  type BudgetAlert,
   type Db,
   type GeminiProvider,
   type KieProvider,
   type UsageTracker,
 } from '@outil/core';
+import { notifyBudget } from './notify.js';
 
 /** Journal du pipeline : une ligne par événement, préfixée par le contenu et l'étape. */
 export type PipelineLogger = (message: string) => void;
@@ -17,7 +19,8 @@ export type PipelineLogger = (message: string) => void;
 /** Événement « prêt » / « échec » pour les notifications locales (toast Windows du tray). */
 export type PipelineNotice =
   | { kind: 'ready'; contentId: string; account: string; title: string }
-  | { kind: 'failed'; contentId: string; account: string; step: string; error: string };
+  | { kind: 'failed'; contentId: string; account: string; step: string; error: string }
+  | ({ kind: 'budget' } & BudgetAlert);
 
 /**
  * Tout ce dont les étapes ont besoin. Les fournisseurs sont créés à la demande : une clé absente
@@ -41,13 +44,16 @@ export function createPipelineContext(
   log: PipelineLogger = (m) => console.log(m),
   notice?: (n: PipelineNotice) => void,
 ): PipelineContext {
-  const tracker = createUsageTracker(ctx, db, (model) =>
-    log(`⚠ modèle ${model} absent de la grille tarifaire : coût enregistré à null`),
+  const tracker = createUsageTracker(
+    ctx,
+    db,
+    (model) => log(`⚠ modèle ${model} absent de la grille tarifaire : coût enregistré à null`),
+    (alert) => void notifyBudget(p, alert),
   );
   let gemini: GeminiProvider | undefined;
   let anthropic: AnthropicProvider | undefined;
   let kie: KieProvider | null | undefined;
-  return {
+  const p: PipelineContext = {
     ctx,
     db,
     tracker,
@@ -65,4 +71,5 @@ export function createPipelineContext(
       return kie;
     },
   };
+  return p;
 }

@@ -30,4 +30,4 @@ durationRange: { min: 15, max: 60 }
 subtitles: false
 
 # unlimited | threshold (alerte) | cap (plafond strict)
-budget: { mode: threshold, monthlyLimitEur: 5 }
+budget: { mode: cap, monthlyLimitEur: 5 }

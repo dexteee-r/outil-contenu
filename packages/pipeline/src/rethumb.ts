@@ -30,11 +30,17 @@ export async function regenerateThumbnails(
   const state = loadState(path.join(readyDir, 'work'));
   if (!state.deliveredDir) throw new Error(`${contentId} n'est pas encore livré`);
   const account = loadAccount(state.account, p.ctx.accountsDir);
+  p.tracker.assertBudget(account.config.slug);
 
   state.clips = clipsFromRaw(state);
   const previous = state.thumbnails ?? [];
 
-  await thumbnail(p, state, account);
+  p.tracker.admit(contentId);
+  try {
+    await thumbnail(p, state, account);
+  } finally {
+    p.tracker.release(contentId);
+  }
 
   // Les nouvelles miniatures remplacent les anciennes à côté de la vidéo
   for (const t of previous) fs.rmSync(t.path, { force: true });

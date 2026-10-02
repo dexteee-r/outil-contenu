@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { retry, type PipelineStep } from '@outil/core';
+import { retry, type BudgetAlert, type PipelineStep } from '@outil/core';
 import type { PipelineContext, PipelineNotice } from './context.js';
 import {
+  budgetMessage,
   diskMessage,
   failedMessage,
   postDiscord,
@@ -154,6 +155,26 @@ export async function notifyReady(
     } catch (err) {
       p.log(`notify : n8n injoignable (${errorText(err)})`);
     }
+  }
+}
+
+/** Alerte de seuil ou de plafond budgétaire (Discord + toast) ; ne lève jamais. */
+export async function notifyBudget(
+  p: PipelineContext,
+  alert: BudgetAlert,
+  transport: NotifyTransport = {},
+): Promise<void> {
+  const what = alert.mode === 'cap' ? 'plafond atteint' : 'seuil dépassé';
+  p.log(
+    `budget ${alert.account} : ${what} (${alert.spentEur.toFixed(2)} € / ${alert.limitEur.toFixed(2)} €)`,
+  );
+  emitNotice(p, { kind: 'budget', ...alert });
+  const url = p.ctx.env.DISCORD_WEBHOOK_URL;
+  if (!url) return;
+  try {
+    await postDiscord(url, budgetMessage(alert), transport.fetchDiscord);
+  } catch (err) {
+    p.log(`notify : impossible d'envoyer l'alerte budget (${errorText(err)})`);
   }
 }
 

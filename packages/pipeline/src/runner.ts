@@ -68,6 +68,9 @@ export class InterruptedError extends Error {
  * Exécute les étapes restantes d'un contenu, dans l'ordre. Chaque étape : ligne `job_steps`
  * « running » → « done » / « failed », état sauvegardé après succès. Un échec marque le job et le
  * contenu, envoie l'alerte d'échec, puis remonte l'erreur. Les étapes déjà faites sont sautées.
+ *
+ * Le contenu est « admis » pour le garde-fou budgétaire : une fois lancé, il va au bout même si le
+ * plafond est atteint en route (le contrôle se fait avant de lancer une nouvelle génération).
  */
 export async function runSteps(
   p: PipelineContext,
@@ -75,6 +78,21 @@ export async function runSteps(
   account: LoadedAccount,
   jobId: number,
   options: RunOptions = {},
+): Promise<PipelineState> {
+  p.tracker.admit(state.contentId);
+  try {
+    return await runAdmittedSteps(p, state, account, jobId, options);
+  } finally {
+    p.tracker.release(state.contentId);
+  }
+}
+
+async function runAdmittedSteps(
+  p: PipelineContext,
+  state: PipelineState,
+  account: LoadedAccount,
+  jobId: number,
+  options: RunOptions,
 ): Promise<PipelineState> {
   const steps = { ...DEFAULT_STEPS, ...options.steps };
   for (const step of PIPELINE_ORDER) {
@@ -161,6 +179,8 @@ export async function runContent(
   options: RunOptions = {},
 ): Promise<PipelineState> {
   const account = loadAccount(input.accountSlug, p.ctx.accountsDir);
+  // Plafond atteint : rien n'est créé, le dossier reste en attente dans /raw
+  p.tracker.assertBudget(account.config.slug);
   const { state, jobId } = await ingest(p, { account, inputDir: input.inputDir });
   return runSteps(p, state, account, jobId, options);
 }

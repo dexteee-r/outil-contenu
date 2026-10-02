@@ -4,7 +4,8 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { OVERLAY_STYLES } from '../schemas/edl.js';
 
-export const CONTENT_TYPES = ['tcg-opening', 'nature-walk', 'generic'] as const;
+/** tech-repair : réparation de PC et de téléphones, montage de PC (dexter.labo) */
+export const CONTENT_TYPES = ['tcg-opening', 'nature-walk', 'tech-repair', 'generic'] as const;
 export type ContentType = (typeof CONTENT_TYPES)[number];
 
 export const PLATFORMS = ['youtube-shorts', 'tiktok', 'instagram-reels'] as const;

@@ -13,7 +13,8 @@ import {
   type AnthropicProviderOptions,
   type AnthropicSdk,
 } from './providers/anthropic.js';
-import { UsageTracker } from './providers/usage.js';
+import { UsageTracker, type BudgetAlert } from './providers/usage.js';
+import { loadAccount } from './config/account.js';
 import type { Db } from './db/index.js';
 
 /** Tout ce dont une commande ou un spike a besoin, calculé une fois depuis .env et la racine du repo. */
@@ -43,12 +44,22 @@ export function createUsageTracker(
   ctx: AppContext,
   db: Db,
   onUnknownModel?: (model: string) => void,
+  onBudgetAlert?: (alert: BudgetAlert) => void,
 ): UsageTracker {
   const options: ConstructorParameters<typeof UsageTracker>[1] = {
     pricing: ctx.pricing,
     usdEurRate: ctx.env.USD_EUR_RATE,
+    // Relu à chaque appel : un plafond modifié dans account.yaml s'applique sans relancer l'outil
+    budgetOf: (account) => {
+      try {
+        return loadAccount(account, ctx.accountsDir).config.budget;
+      } catch {
+        return undefined;
+      }
+    },
   };
   if (onUnknownModel) options.onUnknownModel = onUnknownModel;
+  if (onBudgetAlert) options.onBudgetAlert = onBudgetAlert;
   return new UsageTracker(db, options);
 }
 

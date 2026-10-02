@@ -44,6 +44,8 @@ export async function startFeedback(
   }
   const delivered = locateState(p, contentId);
   const account = loadAccount(delivered.account, p.ctx.accountsDir);
+  // Nouvelle génération : refusée si le plafond strict du compte est atteint
+  p.tracker.assertBudget(account.config.slug);
   const revision = row.version + 1;
   const workDir = p.ctx.paths.processing(contentId);
   fs.mkdirSync(workDir, { recursive: true });

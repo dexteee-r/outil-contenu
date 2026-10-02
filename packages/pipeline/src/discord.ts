@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { retry } from '@outil/core';
+import { retry, type BudgetAlert } from '@outil/core';
 import type { FailedPayload, ReadyPayload } from './notify.js';
 
 /**
@@ -100,6 +100,22 @@ export function diskMessage(
           `Dossier des données : \`${root}\`\nAucune suppression automatique : fais de la place dans \`raw\` ou \`ready\`.`,
           4096,
         ),
+      },
+    ],
+  };
+}
+
+export function budgetMessage(alert: BudgetAlert): DiscordMessage {
+  const cap = alert.mode === 'cap';
+  return {
+    content: cap ? '⛔ **Plafond budgétaire atteint**' : '⚠️ **Seuil budgétaire dépassé**',
+    embeds: [
+      {
+        title: `${alert.account} : ${alert.spentEur.toFixed(2)} € ce mois-ci (limite ${alert.limitEur.toFixed(2)} €)`,
+        color: cap ? RED : 0xf39c12,
+        description: cap
+          ? 'Le contenu en cours se termine ; les nouvelles générations sont suspendues jusqu’au mois prochain. Pour continuer : relever `budget.monthlyLimitEur` dans `account.yaml`.'
+          : 'Rien n’est bloqué (mode « threshold ») : simple alerte.',
       },
     ],
   };
