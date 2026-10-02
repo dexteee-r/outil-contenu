@@ -361,6 +361,7 @@ export function createDashboardServer(o: DashboardOptions): http.Server {
           sendJson(res, 200, {
             queue: queue.status(),
             watching: !!o.control,
+            paused: o.control?.paused ?? false,
             scan: scan
               ? {
                   at: scan.at,
@@ -393,6 +394,18 @@ export function createDashboardServer(o: DashboardOptions): http.Server {
           if (!o.control) throw new HttpError(409, 'la surveillance de /raw n’est pas active');
           o.control.scanNow();
           sendJson(res, 202, { ok: true });
+          return;
+        }
+        if (method === 'POST' && url.pathname === '/api/pause') {
+          if (!o.control) throw new HttpError(409, 'la surveillance de /raw n’est pas active');
+          const body = await readJson(req);
+          if (typeof body.paused !== 'boolean')
+            throw new HttpError(400, 'paused attendu (booléen)');
+          if (o.control.paused !== body.paused) {
+            o.control.paused = body.paused;
+            p.log(body.paused ? 'surveillance mise en pause' : 'surveillance reprise');
+          }
+          sendJson(res, 200, { paused: o.control.paused });
           return;
         }
         if (method === 'POST' && url.pathname === '/api/upload') {

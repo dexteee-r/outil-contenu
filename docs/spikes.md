@@ -22,6 +22,10 @@ Points appris :
 
 **Décision : systray2 pour `apps/tray`, Electron non nécessaire.**
 
+> Révisé à l'étape 9 (2026-10-02) : icône en PowerShell + WinForms (`NotifyIcon`), qui gère aussi
+> les toasts, sans binaire tiers ; icônes du spike gardées mais encodées en BMP. Voir
+> `etape-9-tray.md`.
+
 ## S2 — Rendu Remotion — 2026-09-20
 
 **Résultat : validé bout-en-bout, sur clips synthétiques.** EDL de référence (6 segments, dont un à

@@ -116,7 +116,7 @@ export function registerPipelineCommands(program: Command): void {
       const ctx = createContext();
       const db = openDb({ file: ctx.paths.db });
       const controller = new AbortController();
-      const uninstall = installStopHandlers(controller, log);
+      const { uninstall } = installStopHandlers(controller, log);
       const quietMin = opts.quiet !== undefined ? Number(opts.quiet) : ctx.env.WATCH_QUIET_MINUTES;
       log(
         `surveillance de ${ctx.paths.raw()} — un dossier est traité après ${quietMin} min sans changement`,

@@ -1,25 +1,26 @@
 import sharp from 'sharp';
 
 /**
- * Fabrication d'icônes .ico pour la zone de notification Windows.
- * Un .ico moderne peut contenir directement des PNG (Vista+) : on empaquette
- * plusieurs tailles rendues par sharp, sans dépendance supplémentaire.
+ * Fabrication d'icônes .ico (zone de notification Windows, raccourci) sans dépendance de plus.
+ * Images en BMP 32 bits avec alpha jusqu'à 128 px, PNG pour 256 px — comme les icônes de Windows :
+ * System.Drawing (le tray PowerShell) lit mal les images PNG des petites tailles (couleurs
+ * aberrantes, constaté à l'étape 9).
  */
 
-export const ICO_SIZES = [16, 32, 48, 256] as const;
+export const ICO_SIZES = [16, 20, 24, 32, 48, 256] as const;
 
 export interface IcoImage {
   /** Largeur = hauteur, en pixels (256 max) */
   size: number;
-  /** Données PNG */
-  png: Buffer;
+  /** Image encodée : PNG, ou BMP sans en-tête de fichier (voir `rgbaToDib`) */
+  data: Buffer;
 }
 
 const HEADER_SIZE = 6;
 const ENTRY_SIZE = 16;
 
-/** Empaquette des PNG carrés dans un conteneur .ico. */
-export function pngsToIco(images: IcoImage[]): Buffer {
+/** Empaquette des images carrées dans un conteneur .ico. */
+export function packIco(images: IcoImage[]): Buffer {
   if (images.length === 0) throw new Error('au moins une image requise');
   for (const img of images) {
     if (!Number.isInteger(img.size) || img.size < 1 || img.size > 256) {
@@ -42,12 +43,40 @@ export function pngsToIco(images: IcoImage[]): Buffer {
     entries.writeUInt8(0, e + 3); // réservé
     entries.writeUInt16LE(1, e + 4); // plans
     entries.writeUInt16LE(32, e + 6); // bits par pixel
-    entries.writeUInt32LE(img.png.length, e + 8);
+    entries.writeUInt32LE(img.data.length, e + 8);
     entries.writeUInt32LE(offset, e + 12);
-    offset += img.png.length;
+    offset += img.data.length;
   });
 
-  return Buffer.concat([header, entries, ...images.map((i) => i.png)]);
+  return Buffer.concat([header, entries, ...images.map((i) => i.data)]);
+}
+
+/**
+ * Image BMP d'icône : en-tête BITMAPINFOHEADER (hauteur doublée), pixels BGRA de bas en haut,
+ * puis masque ET à zéro (la transparence vient du canal alpha).
+ */
+export function rgbaToDib(size: number, rgba: Buffer): Buffer {
+  if (rgba.length !== size * size * 4) throw new Error(`image ${size} px : pixels incomplets`);
+  const maskRow = Math.ceil(size / 32) * 4;
+  const info = Buffer.alloc(40);
+  info.writeUInt32LE(40, 0);
+  info.writeInt32LE(size, 4);
+  info.writeInt32LE(size * 2, 8);
+  info.writeUInt16LE(1, 12);
+  info.writeUInt16LE(32, 14);
+  info.writeUInt32LE(size * size * 4 + maskRow * size, 20);
+  const pixels = Buffer.alloc(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const src = (y * size + x) * 4;
+      const dst = ((size - 1 - y) * size + x) * 4;
+      pixels[dst] = rgba[src + 2]!;
+      pixels[dst + 1] = rgba[src + 1]!;
+      pixels[dst + 2] = rgba[src]!;
+      pixels[dst + 3] = rgba[src + 3]!;
+    }
+  }
+  return Buffer.concat([info, pixels, Buffer.alloc(maskRow * size)]);
 }
 
 /** Lit l'annuaire d'un .ico (pour les tests et l'inspection). */
@@ -65,19 +94,20 @@ export function readIcoDirectory(ico: Buffer): { size: number; bytes: number; of
   });
 }
 
-/** Rend un SVG (fonction de la taille) en PNG aux tailles standard, puis en .ico. */
+/** Rend un SVG (fonction de la taille) à chaque taille, puis l'empaquette en .ico. */
 export async function svgToIco(
   svgForSize: (size: number) => string,
   sizes: readonly number[] = ICO_SIZES,
 ): Promise<Buffer> {
   const images = await Promise.all(
-    sizes.map(async (size) => ({
-      size,
-      png: await sharp(Buffer.from(svgForSize(size)))
-        .resize(size, size)
-        .png()
-        .toBuffer(),
-    })),
+    sizes.map(async (size) => {
+      const img = sharp(Buffer.from(svgForSize(size))).resize(size, size);
+      const data =
+        size >= 256
+          ? await img.png().toBuffer()
+          : rgbaToDib(size, await img.ensureAlpha().raw().toBuffer());
+      return { size, data };
+    }),
   );
-  return pngsToIco(images);
+  return packIco(images);
 }

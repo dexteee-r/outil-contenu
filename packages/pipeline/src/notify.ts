@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { retry, type PipelineStep } from '@outil/core';
-import type { PipelineContext } from './context.js';
+import type { PipelineContext, PipelineNotice } from './context.js';
 import {
   diskMessage,
   failedMessage,
@@ -104,6 +104,15 @@ export interface NotifyTransport {
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
+/** Relais local (toast du tray) : passe avant les webhooks et ne fait jamais échouer l'alerte. */
+function emitNotice(p: PipelineContext, n: PipelineNotice): void {
+  try {
+    p.notice?.(n);
+  } catch (err) {
+    p.log(`notify : relais local en échec (${errorText(err)})`);
+  }
+}
+
 /**
  * Alerte « prêt » vers Discord et/ou n8n, selon ce qui est configuré. Une panne d'envoi est
  * journalisée mais ne fait pas échouer le contenu : la vidéo est livrée, c'est l'essentiel.
@@ -115,6 +124,12 @@ export async function notifyReady(
 ): Promise<void> {
   const { DISCORD_WEBHOOK_URL: discord, N8N_WEBHOOK_READY_URL: n8n } = p.ctx.env;
   const payload = buildReadyPayload(state);
+  emitNotice(p, {
+    kind: 'ready',
+    contentId: payload.contentId,
+    account: payload.account,
+    title: payload.thumbnailTitle ?? payload.title,
+  });
   if (!discord && !n8n) {
     p.log(`notify : aucun webhook configuré — pas d'alerte (contenu prêt : ${payload.readyDir})`);
     return;
@@ -165,6 +180,13 @@ export async function notifyFailed(
   transport: NotifyTransport = {},
 ): Promise<void> {
   const { DISCORD_WEBHOOK_URL: discord, N8N_WEBHOOK_FAILED_URL: n8n } = p.ctx.env;
+  emitNotice(p, {
+    kind: 'failed',
+    contentId: payload.contentId,
+    account: payload.account,
+    step: payload.step,
+    error: payload.error,
+  });
   if (!discord && !n8n) {
     p.log(
       `notify : aucun webhook configuré — échec non relayé (${payload.step} : ${payload.error})`,

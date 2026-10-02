@@ -455,6 +455,9 @@
         <button id="scanNow" title="Traiter les dossiers de /raw sans attendre la période de calme">
           Traiter maintenant
         </button>
+        <button id="pauseWatch" title="Ne plus lancer automatiquement les dossiers déposés">
+          Pause
+        </button>
       </div>
     </header>
     <main id="app"></main>
@@ -555,12 +558,20 @@
           const pending = (s.scan?.folders ?? []).filter((f) => f.videos > 0);
           document.getElementById('statusText').textContent = busy
             ? `▶ ${s.queue.current.label}${waiting}`
-            : pending.length
-              ? `${pending.length} dossier(s) déposé(s), traitement après ${s.quietMinutes} min de calme`
-              : s.watching
-                ? 'En veille — surveille les dépôts'
-                : 'En veille';
+            : s.paused
+              ? `Surveillance en pause${pending.length ? ` · ${pending.length} dossier(s) déposé(s)` : ''}`
+              : pending.length
+                ? `${pending.length} dossier(s) déposé(s), traitement après ${s.quietMinutes} min de calme`
+                : s.watching
+                  ? 'En veille — surveille les dépôts'
+                  : 'En veille';
           document.getElementById('scanNow').disabled = !s.watching || pending.length === 0;
+          const pauseBtn = document.getElementById('pauseWatch');
+          pauseBtn.hidden = !s.watching;
+          pauseBtn.textContent = s.paused ? 'Reprendre' : 'Pause';
+          pauseBtn.title = s.paused
+            ? 'Relancer la surveillance des dépôts'
+            : 'Ne plus lancer automatiquement les dossiers déposés';
           const logs = document.getElementById('logs');
           if (logs) {
             const atBottom = logs.scrollTop + logs.clientHeight >= logs.scrollHeight - 20;
@@ -576,6 +587,19 @@
           await api('/api/scan', { method: 'POST' });
           toast('Traitement lancé');
           setTimeout(refreshStatus, 800);
+        } catch (e) {
+          toast(e.message);
+        }
+      };
+      document.getElementById('pauseWatch').onclick = async () => {
+        try {
+          const { paused } = await api('/api/pause', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paused: !lastStatus?.paused }),
+          });
+          toast(paused ? 'Surveillance en pause' : 'Surveillance reprise');
+          refreshStatus();
         } catch (e) {
           toast(e.message);
         }

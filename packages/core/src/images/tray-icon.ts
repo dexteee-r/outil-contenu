@@ -34,6 +34,16 @@ export function trayIconFileName(state: TrayState): string {
   return `tray-${state}.ico`;
 }
 
+/** Icône du raccourci « Outil contenu » : celle de l'état « en cours » (verte). */
+export const APP_ICON_FILE = 'outil-contenu.ico';
+
+export async function buildAppIcon(outDir: string): Promise<string> {
+  fs.mkdirSync(outDir, { recursive: true });
+  const file = path.join(outDir, APP_ICON_FILE);
+  fs.writeFileSync(file, await svgToIco((size) => trayIconSvg('running', size), ICO_SIZES));
+  return file;
+}
+
 /** Écrit un .ico par état dans `outDir` et renvoie les chemins. */
 export async function buildTrayIcons(outDir: string): Promise<Record<TrayState, string>> {
   fs.mkdirSync(outDir, { recursive: true });

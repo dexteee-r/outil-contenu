@@ -4,7 +4,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { afterEach, describe, expect, it } from 'vitest';
 import { closeDb, openDb, type Db } from '@outil/core';
-import { createPipelineContext } from './context.js';
+import { createPipelineContext, type PipelineNotice } from './context.js';
 import {
   clip,
   failedMessage,
@@ -194,5 +194,34 @@ describe('notifyReady / notifyFailed', () => {
     const p = createPipelineContext(makeTestContext(dir), db, (m) => logs.push(m));
     await notifyFailed(p, failed);
     expect(logs.at(-1)).toContain('aucun webhook configuré');
+  });
+
+  it('relais local (toast) même sans webhook, et une panne du relais ne bloque rien', async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'outil-discord-'));
+    db = openDb({ file: ':memory:' });
+    const logs: string[] = [];
+    const notices: PipelineNotice[] = [];
+    const p = createPipelineContext(
+      makeTestContext(dir),
+      db,
+      (m) => logs.push(m),
+      (n) => notices.push(n),
+    );
+    await notifyFailed(p, failed);
+    expect(notices).toEqual([
+      {
+        kind: 'failed',
+        contentId: failed.contentId,
+        account: failed.account,
+        step: failed.step,
+        error: failed.error,
+      },
+    ]);
+
+    p.notice = () => {
+      throw new Error('tray fermé');
+    };
+    await expect(notifyFailed(p, failed)).resolves.toBeUndefined();
+    expect(logs.some((l) => l.includes('relais local en échec (tray fermé)'))).toBe(true);
   });
 });

@@ -12,6 +12,7 @@ import {
   runWatcher,
   scanInbox,
   SYNCTHING_TEMP,
+  WatchControl,
   type InboxFolder,
 } from './watch.js';
 import { makeTestContext, writeTestAccount } from './test-helpers.js';
@@ -198,6 +199,30 @@ describe('runWatcher', () => {
     expect(n).toBe(1);
     expect(executed).toEqual(['edl']); // le dérushage, terminé avant l'arrêt, n'est pas refait
     expect(db.select().from(contents).get()!.status).toBe('ready');
+  }, 60_000);
+
+  it('en pause : rien ne part tout seul, « traiter maintenant » passe quand même', async () => {
+    const { p, raw } = setup();
+    const d = path.join(raw, '2026-09-26');
+    fs.mkdirSync(d);
+    await makeSyntheticClip({
+      out: path.join(d, 'rush.mp4'),
+      durationSec: 1,
+      width: 64,
+      height: 128,
+      fps: 12,
+    });
+    const control = new WatchControl();
+    control.paused = true;
+    const opts = { quietMs: 0, intervalMs: 10, once: true, run: neutral(p), control };
+
+    expect(await runWatcher(p, opts)).toBe(0);
+    expect(fs.existsSync(path.join(d, PROCESSED_MARKER))).toBe(false);
+    expect(control.lastScan?.folders.map((f) => f.dir)).toEqual([d]); // toujours visible
+
+    control.scanNow();
+    expect(await runWatcher(p, opts)).toBe(1);
+    expect(fs.existsSync(path.join(d, PROCESSED_MARKER))).toBe(true);
   }, 60_000);
 
   it('dossier illisible : marqueur « failed » et alerte, pas de boucle', async () => {

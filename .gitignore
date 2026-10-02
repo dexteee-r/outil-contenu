@@ -41,3 +41,9 @@ accounts/*/inspiration/*
 # Polices de marque : licences variées (certaines non redistribuables), jamais dans le dépôt public
 accounts/*/brand/fonts/*
 !accounts/*/brand/fonts/README.md
+
+# Icônes générées au lancement (pnpm start --tray, pnpm cli tray:setup)
+apps/worker/assets/icons/
+
+# Rapport JSON de vitest (rtk)
+.vitest/

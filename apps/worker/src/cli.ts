@@ -16,6 +16,7 @@ import {
   registerInspirationWebCommand,
 } from './inspiration-commands.js';
 import { registerPipelineCommands } from './pipeline-commands.js';
+import { registerTraySetupCommand } from './tray/setup.js';
 
 const program = new Command()
   .name('outil')
@@ -92,6 +93,7 @@ function describeBudget(b: { mode: string; monthlyLimitEur?: number }): string {
 }
 
 registerAppCommand(program);
+registerTraySetupCommand(program);
 registerPipelineCommands(program);
 registerInspirationCommands(program);
 registerInspirationWebCommand(program);

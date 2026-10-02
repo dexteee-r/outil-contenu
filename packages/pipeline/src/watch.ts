@@ -158,6 +158,11 @@ export interface WatchOptions {
  */
 export class WatchControl {
   lastScan: { at: string; folders: InboxFolder[] } | null = null;
+  /**
+   * En pause : /raw est toujours balayé (le tableau de bord voit ce qui attend) mais rien n'est
+   * lancé automatiquement ; « traiter maintenant » reste possible.
+   */
+  paused = false;
   private forced = false;
   private wake: (() => void) | null = null;
 
@@ -253,7 +258,10 @@ export async function runWatcher(p: PipelineContext, o: WatchOptions): Promise<n
     }
     announced = new Set(folders.map((f) => f.dir));
 
-    const ready = o.control?.takeForced() ? tracker.readyNow(folders) : tracker.ready(folders);
+    // La période de calme est suivie même en pause : à la reprise, un dossier calme part aussitôt
+    const forced = o.control?.takeForced() ?? false;
+    const quiet = tracker.ready(folders);
+    const ready = forced ? tracker.readyNow(folders) : o.control?.paused ? [] : quiet;
     for (const f of ready) {
       if (o.signal?.aborted) break;
       tracker.forget(f.dir);

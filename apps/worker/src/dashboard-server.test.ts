@@ -244,6 +244,21 @@ describe('tableau de bord', () => {
     expect(forced).toBe(true);
   });
 
+  it('met la surveillance en pause et la reprend', async () => {
+    const post = (body: unknown) =>
+      fetch(`${base}/api/pause`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    expect(await json(await post({ paused: true }))).toEqual({ paused: true });
+    expect(control.paused).toBe(true);
+    expect((await json(await fetch(`${base}/api/status`))).paused).toBe(true);
+    expect((await post({ paused: 'oui' })).status).toBe(400);
+    expect(await json(await post({ paused: false }))).toEqual({ paused: false });
+    expect(control.paused).toBe(false);
+  });
+
   it('coûts du mois face au budget, comptes', async () => {
     const costs = await json(await fetch(`${base}/api/costs`));
     expect((costs.monthByAccount as Record<string, number>).tcg).toBeCloseTo(0.04 * 0.92);

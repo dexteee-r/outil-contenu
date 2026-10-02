@@ -14,6 +14,11 @@ import {
 /** Journal du pipeline : une ligne par événement, préfixée par le contenu et l'étape. */
 export type PipelineLogger = (message: string) => void;
 
+/** Événement « prêt » / « échec » pour les notifications locales (toast Windows du tray). */
+export type PipelineNotice =
+  | { kind: 'ready'; contentId: string; account: string; title: string }
+  | { kind: 'failed'; contentId: string; account: string; step: string; error: string };
+
 /**
  * Tout ce dont les étapes ont besoin. Les fournisseurs sont créés à la demande : une clé absente
  * ne bloque que l'étape qui en dépend, avec un message clair.
@@ -23,6 +28,8 @@ export interface PipelineContext {
   db: Db;
   tracker: UsageTracker;
   log: PipelineLogger;
+  /** Relais local des alertes, en plus de Discord ; ne doit jamais lever */
+  notice?: ((n: PipelineNotice) => void) | undefined;
   gemini(): GeminiProvider;
   anthropic(): AnthropicProvider;
   kie(): KieProvider | null;
@@ -32,6 +39,7 @@ export function createPipelineContext(
   ctx: AppContext,
   db: Db,
   log: PipelineLogger = (m) => console.log(m),
+  notice?: (n: PipelineNotice) => void,
 ): PipelineContext {
   const tracker = createUsageTracker(ctx, db, (model) =>
     log(`⚠ modèle ${model} absent de la grille tarifaire : coût enregistré à null`),
@@ -44,6 +52,7 @@ export function createPipelineContext(
     db,
     tracker,
     log,
+    notice,
     gemini: () => (gemini ??= createGeminiProvider(ctx, tracker)),
     anthropic: () => (anthropic ??= createAnthropicProvider(ctx, tracker)),
     kie: () => {
