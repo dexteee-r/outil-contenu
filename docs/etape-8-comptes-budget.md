@@ -66,3 +66,28 @@ retentés automatiquement. Rien ne part pendant la pause de la surveillance.
 - En réel : plafond TCG abaissé à 0,05 € (0,07 € dépensés en octobre) → `pnpm content thumbnail`
   refusé avec le message, **aucun appel API** passé ; plafond remis à 5 €.
 - À faire avec Markus : un vrai contenu dexter.labo de bout en bout.
+
+## Premier contenu dexter.labo (2026-10-07)
+
+Rushs déjà publiés (remplacement d'une RTX 4060 par une 4060 Ti, 4 clips iPhone, 73 s) →
+`dexter-labo-2026-10-07-6d64`, 29 s. Retours de Markus : « miniature dégueulasse et le titre
+aussi ».
+
+- **Miniature** : le style poster a détouré… le pouce qui tenait la carte ; l'instant choisi par
+  le dérushage (modèle Gemini de repli, l'autre saturé) était flou. Sur Instagram, Markus ne fait
+  pas de miniature : la couverture est une image de la vidéo. Shorts de référence (18 miniatures
+  dans `accounts/dexter-labo/inspiration/`) : image nette, pièce en grand au centre, pas de gros
+  titre. Donc :
+  - style **screen** avec `showTitle: false` (image seule, légèrement relevée) ;
+  - **choix de la couverture par Claude en regardant** 12 captures nettes et variées tirées des
+    passages du montage (`steps/cover.ts`, `prompts/cover-pick.md`, ~1 centime) : la netteté
+    mesurée seule préfère un écran couvert de texte à un PC allumé dans le noir.
+- **Titres** : « GPU couvert de poussière → nettoyage satisfaisant + upgrade » faisait fiche
+  technique. Consignes `captions-tech-repair.md` réécrites d'après les Shorts qui marchent (une
+  idée, ton parlé, un emoji au plus, pas de « + »/« → » entre étapes).
+- **Brief** : l'outil devinait l'histoire depuis les images (il a fini par écrire qu'on remettait
+  l'ancienne carte). Un `brief.txt` dans le dossier de rushs — ou le champ « Contexte » de la page
+  Déposer — est transmis au dérushage, au montage, aux légendes et au choix de couverture, et fait
+  foi. Relu à chaque étape : on peut l'ajouter après coup puis relancer un retour.
+- Résultat v4 : « Je remplace ma RTX 4060 par une RTX 4060 Ti 😮 », couverture = la boîte MSI
+  RTX 4060 Ti, nette.

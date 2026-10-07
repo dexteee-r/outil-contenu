@@ -59,6 +59,11 @@ export const thumbnailTemplateSchema = z
      * image clé + voile. Aucun style n'exige d'image IA sauf photo avec fournisseur configuré.
      */
     style: z.enum(THUMBNAIL_STYLES).default('duo'),
+    /**
+     * Style screen : titre (et pastille) incrustés, ou image seule, comme une couverture
+     * Instagram tirée de la vidéo (false)
+     */
+    showTitle: z.boolean().default(true),
     /** Pastille d'appel à l'action des styles poster et card (null = aucune) */
     cta: z.string().min(1).max(24).nullable().default('REGARDE'),
     duo: z

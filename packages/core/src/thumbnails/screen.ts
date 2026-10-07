@@ -128,13 +128,23 @@ export async function composeScreenThumbnail(
   let box: TitleBox;
   let ctaHeight: number;
 
+  const showTitle = o.template.showTitle;
+  // Sans titre : la capture telle qu'un créateur la poste, juste un peu relevée
+  const grade = (image: Sharp) =>
+    showTitle
+      ? gradeForThumbnail(image)
+      : image
+          .modulate({ saturation: 1.12, brightness: 1.03 })
+          .linear(1.06, -5)
+          .sharpen({ sigma: 0.8 });
+
   if (o.format === '9x16') {
     // Plein cadre : la capture couvre tout, étalonnée
-    base = gradeForThumbnail(
-      sharp(o.frame).resize(width, height, { fit: 'cover', position: 'attention' }),
-    );
-    layers.push({ input: Buffer.from(vignetteSvg(width, height, 0.55)) });
-    layers.push({ input: Buffer.from(textShadeSvg(width, height, 0.5, 0.9)) });
+    base = grade(sharp(o.frame).resize(width, height, { fit: 'cover', position: 'attention' }));
+    if (showTitle) {
+      layers.push({ input: Buffer.from(vignetteSvg(width, height, 0.55)) });
+      layers.push({ input: Buffer.from(textShadeSvg(width, height, 0.5, 0.9)) });
+    }
     box = { x: 0.06, y: 0.7, w: 0.88, maxLines: 2, align: 'center', fontSize: 0.085 };
     ctaHeight = 0.055;
   } else {
@@ -151,12 +161,13 @@ export async function composeScreenThumbnail(
     const meta = await sharp(o.frame).metadata();
     const ratio = (meta.width ?? 1080) / (meta.height ?? 1920);
     const insetW = Math.round(insetH * Math.min(ratio, 0.75));
-    const inset = await gradeForThumbnail(
+    const inset = await grade(
       sharp(o.frame).resize(insetW, insetH, { fit: 'cover', position: 'attention' }),
     )
       .png()
       .toBuffer();
-    const left = Math.round(width * 0.06);
+    // Sans titre, la capture est centrée
+    const left = showTitle ? Math.round(width * 0.06) : Math.round((width - insetW) / 2);
     const top = Math.round((height - insetH) / 2);
     // Ombre de la capture, puis la capture avec un liseré clair
     layers.push({
@@ -196,8 +207,8 @@ export async function composeScreenThumbnail(
   }
 
   const title = titleSvg(width, height, box, o.template, o.brand, o.title);
-  layers.push({ input: Buffer.from(title.svg) });
-  if (o.template.cta) {
+  if (showTitle) layers.push({ input: Buffer.from(title.svg) });
+  if (showTitle && o.template.cta) {
     layers.push({
       input: Buffer.from(
         ctaSvg(

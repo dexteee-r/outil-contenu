@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import {
+  briefSection,
   CAPTIONS_ADDENDUM,
   captionsOutputSchemaFor,
   loadPrompt,
@@ -10,6 +11,7 @@ import {
 import type { PipelineContext } from '../context.js';
 import { feedbackTurns, taggingForPrompt } from './edl.js';
 import { currentFeedback, type PipelineState } from '../state.js';
+import { readBrief } from './ingest.js';
 
 /**
  * System prompt : règles génériques + consignes du type de contenu + instructions du compte
@@ -45,6 +47,7 @@ export async function captions(
   const platforms = account.config.platforms;
   const schema = captionsOutputSchemaFor(platforms);
   const user = [
+    briefSection(readBrief(state.sourceDir)),
     `## Plateformes ciblées\n${platforms.join(', ')}`,
     `## Dérushage\n\`\`\`json\n${JSON.stringify(taggingForPrompt(state.tagging), null, 1)}\n\`\`\``,
     state.edl

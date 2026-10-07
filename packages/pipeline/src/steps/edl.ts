@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  briefSection,
   edlDurationSec,
   edlSchema,
   formatEdlIssues,
@@ -12,6 +13,7 @@ import {
 } from '@outil/core';
 import type { PipelineContext } from '../context.js';
 import { currentFeedback, type PipelineState } from '../state.js';
+import { readBrief } from './ingest.js';
 
 export const EDL_MAX_ATTEMPTS = 3;
 
@@ -32,9 +34,14 @@ export function taggingForPrompt(tagging: TaggingResult): unknown {
 }
 
 /** Message utilisateur initial : contraintes du compte + dérushage. */
-export function buildEdlRequest(account: LoadedAccount, tagging: TaggingResult): string {
+export function buildEdlRequest(
+  account: LoadedAccount,
+  tagging: TaggingResult,
+  brief?: string,
+): string {
   const c = account.config;
   return [
+    ...(brief ? [briefSection(brief), ''] : []),
     '## Contraintes du compte',
     `- contentType : ${c.contentType}`,
     `- durationRange : ${c.durationRange.min} à ${c.durationRange.max} secondes`,
@@ -85,7 +92,7 @@ export async function edl(
   const claude = p.anthropic();
   const system = loadPrompt('edl', p.ctx.promptsDir);
   const messages: AnthropicMessage[] = [
-    { role: 'user', content: buildEdlRequest(account, tagging) },
+    { role: 'user', content: buildEdlRequest(account, tagging, readBrief(state.sourceDir)) },
   ];
   const fb = currentFeedback(state, 'video');
   if (fb && state.edl) {

@@ -10,6 +10,19 @@ import { saveState, type PipelineState } from '../state.js';
  * /processing/<content-id>/source/, sonde chaque fichier (ffprobe) et crée l'état + les lignes
  * `contents` et `jobs`. Les originaux dans /raw ne sont jamais modifiés.
  */
+/** Note de contexte déposée avec les rushs : ce qui se passe, l'appareil, la panne… (fait foi). */
+export const BRIEF_FILE = /^brief\.(txt|md)$/i;
+const BRIEF_MAX_CHARS = 2000;
+
+/** Le brief du dossier de rushs, ou undefined. Relu à chaque étape : on peut l'ajouter après coup. */
+export function readBrief(sourceDir: string): string | undefined {
+  if (!fs.existsSync(sourceDir)) return undefined;
+  const name = fs.readdirSync(sourceDir).find((f) => BRIEF_FILE.test(f));
+  if (!name) return undefined;
+  const text = fs.readFileSync(path.join(sourceDir, name), 'utf8').trim(); // trim retire aussi le BOM
+  return text ? text.slice(0, BRIEF_MAX_CHARS) : undefined;
+}
+
 export interface IngestResult {
   state: PipelineState;
   jobId: number;
@@ -39,6 +52,8 @@ export async function ingest(
     copied.push(dest);
   }
   p.log(`ingest : ${sourceFiles.length} rush(s) copié(s) dans ${srcCopyDir}`);
+  const brief = readBrief(sourceDir);
+  if (brief) p.log(`ingest : brief « ${brief.length > 120 ? `${brief.slice(0, 119)}…` : brief} »`);
 
   const clips = await probeClips(copied);
   for (const c of clips) {

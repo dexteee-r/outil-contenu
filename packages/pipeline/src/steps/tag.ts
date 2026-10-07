@@ -18,6 +18,7 @@ import {
 } from '@outil/core';
 import type { PipelineContext } from '../context.js';
 import type { PipelineState } from '../state.js';
+import { readBrief } from './ingest.js';
 
 /**
  * Clé de cache du tagging : mêmes rushs (nom + taille + durée), même type de contenu, même prompt
@@ -68,6 +69,7 @@ export async function tag(
     contentType: account.config.contentType,
     clips,
     dir: p.ctx.promptsDir,
+    brief: readBrief(state.sourceDir),
   });
   const key = taggingCacheKey(clips, account.config.contentType, prompt);
   const cached = readCache(p, key);

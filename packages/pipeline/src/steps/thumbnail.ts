@@ -18,6 +18,7 @@ import {
   type TaggingResult,
 } from '@outil/core';
 import type { PipelineContext } from '../context.js';
+import { pickCover } from './cover.js';
 import type { PipelineState } from '../state.js';
 
 /** Le climax au meilleur score, sinon le meilleur moment fort, sinon null. */
@@ -186,7 +187,11 @@ export async function thumbnail(
       : [clip.durationSec / 2];
   if (subject) p.log(`thumbnail : sujet choisi — ${subject.what}`);
   const cutoutStyle = template.style === 'duo' || template.style === 'poster';
-  const keyFrame = await subjectFrame(p, state, clip, candidates, 'key', !cutoutStyle);
+  // Style screen : la couverture est une image de la vidéo, choisie en regardant les captures
+  const keyFrame =
+    template.style === 'screen'
+      ? (await pickCover(p, state, account)).frame
+      : await subjectFrame(p, state, clip, candidates, 'key', !cutoutStyle);
 
   state.thumbnails = [];
   if (template.style === 'duo') {
@@ -307,7 +312,9 @@ export async function thumbnail(
       });
     }
     p.log(
-      `thumbnail : style ${template.style}, titre « ${title} », CTA « ${template.cta ?? '—'} »`,
+      template.style === 'screen' && !template.showTitle
+        ? 'thumbnail : style screen, image seule (sans titre)'
+        : `thumbnail : style ${template.style}, titre « ${title} », CTA « ${template.cta ?? '—'} »`,
     );
     return;
   }

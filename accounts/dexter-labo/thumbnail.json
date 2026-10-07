@@ -1,4 +1,4 @@
 {
-  "style": "poster",
-  "cta": "LE RÉSULTAT"
+  "style": "screen",
+  "showTitle": false
 }

@@ -857,6 +857,9 @@
               <label>Compte <select id="upAcc">${accounts.map((a) => `<option value="${esc(a.slug)}" ${a.slug === pref('account', '') ? 'selected' : ''}>${esc(a.displayName ?? a.slug)}</option>`).join('')}</select></label>
               <label>Session <input id="upSession" value="${today}" size="16"></label>
             </div>
+            <label style="display:grid;gap:4px;margin:0 0 12px">Contexte (facultatif) : ce qui se passe, l'appareil, la panne, pour qui… L'IA s'appuie dessus et ne le contredit jamais.
+              <textarea id="upBrief" rows="3" maxlength="2000" placeholder="Ex. : Je remplace la RTX 4060 de mon pote par une 4060 Ti, et je nettoie la poussière au passage."></textarea>
+            </label>
             <div class="drop" id="drop">Glisse tes vidéos ici, ou <label style="text-decoration:underline;cursor:pointer">choisis-les<input type="file" id="upFiles" multiple accept="video/*,.mov,.mp4,.m4v" hidden></label></div>
             <div id="upList" style="display:grid;gap:8px;margin-top:12px"></div>
           </section>`;
@@ -879,6 +882,12 @@
         const account = document.getElementById('upAcc').value;
         const session = document.getElementById('upSession').value.trim();
         const list = document.getElementById('upList');
+        // Le contexte part en premier, en brief.txt, avant que la période de calme ne commence
+        const brief = document.getElementById('upBrief').value.trim();
+        if (brief) {
+          files = [new File([brief], 'brief.txt', { type: 'text/plain' }), ...files];
+          document.getElementById('upBrief').value = '';
+        }
         for (const file of files) {
           const row = document.createElement('div');
           row.innerHTML = `<div class="meta"><strong>${esc(file.name)}</strong><span>${(file.size / 1e6).toFixed(1)} Mo</span><span class="st">envoi…</span></div><progress max="100" value="0"></progress>`;

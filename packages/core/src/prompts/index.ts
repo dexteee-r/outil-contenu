@@ -43,15 +43,27 @@ export function describeClips(clips: ClipInfo[]): string {
     .join('\n');
 }
 
-/** Texte complet du prompt de tagging : générique + spécifique au type + liste des clips. */
+/**
+ * Contexte écrit par l'auteur des rushs (brief.txt) : il fait foi sur ce que les modèles
+ * devineraient des images (appareil, panne, pour qui, ce qui change).
+ */
+export function briefSection(brief: string | undefined): string {
+  return brief
+    ? `## Contexte donné par l'auteur des rushs (fait foi)\n\n${brief}\n\nAppuie-toi dessus ; ne le contredis jamais et n'invente rien au-delà.`
+    : '';
+}
+
+/** Texte complet du prompt de tagging : générique + spécifique au type + brief + liste des clips. */
 export function buildTaggingPrompt(params: {
   contentType: ContentType;
   clips: ClipInfo[];
   dir: string;
+  brief?: string | undefined;
 }): string {
   const parts = [loadPrompt('tagging-generic', params.dir)];
   const addendum = TAGGING_ADDENDUM[params.contentType];
   if (addendum) parts.push(loadPrompt(addendum, params.dir));
+  if (params.brief) parts.push(briefSection(params.brief));
   parts.push(
     `## Clips fournis\n\n${describeClips(params.clips)}\n\nChaque vidéo est précédée d'un texte « clip <clipId> ».`,
   );

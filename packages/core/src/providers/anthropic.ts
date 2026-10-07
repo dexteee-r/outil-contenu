@@ -9,7 +9,18 @@ import type { ApiCallMeta, UsageTracker } from './usage.js';
  * structurelle pour les tests ; chaque appel passe par `UsageTracker`.
  */
 
-export type AnthropicMessage = { role: 'user' | 'assistant'; content: string };
+/** Bloc de contenu : texte, ou image en base64 (choix d'une couverture parmi des captures). */
+export type AnthropicContentBlock =
+  | { type: 'text'; text: string }
+  | {
+      type: 'image';
+      source: { type: 'base64'; media_type: 'image/jpeg' | 'image/png'; data: string };
+    };
+
+export type AnthropicMessage = {
+  role: 'user' | 'assistant';
+  content: string | AnthropicContentBlock[];
+};
 
 export interface AnthropicParseParams {
   model: string;

@@ -11,3 +11,5 @@ curieux de tech, pas forcément expert.
 - Termine la description par une question ou une invitation à commenter (« Tu veux voir quelle
   réparation ensuite ? »).
 - Hashtags de marque à inclure quand ils ont leur place : #dexterlabo.
+- Un emoji est permis en fin de titre (contrairement à la règle générale), comme dans les Shorts
+  de réparation qui marchent.

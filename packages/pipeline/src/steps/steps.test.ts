@@ -13,7 +13,7 @@ import {
   type Db,
   type TaggingResult,
 } from '@outil/core';
-import { AnthropicProvider, type AnthropicSdk } from '@outil/core';
+import { AnthropicProvider, type AnthropicMessage, type AnthropicSdk } from '@outil/core';
 import { createPipelineContext, type PipelineContext } from '../context.js';
 import { makeContentId, isVideoFile } from '../ids.js';
 import { buildReadyPayload, postWebhook } from '../notify.js';
@@ -126,7 +126,7 @@ describe('edl step', () => {
       segments: [{ ...referenceEdl.segments[0]!, clipId: 'rush-99', in: 0, out: 20 }],
     };
     const responses = [bad, referenceEdl];
-    const sent: { messages: { role: string; content: string }[] }[] = [];
+    const sent: { messages: AnthropicMessage[] }[] = [];
     const sdk: AnthropicSdk = {
       messages: {
         parse: (params) => {
